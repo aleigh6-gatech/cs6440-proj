@@ -6,20 +6,25 @@ import (
 	"io/ioutil"
 	conf "coordinator/config"
 	"gopkg.in/yaml.v2"
-
+	CoordinatorProxy "coordinator/proxy"
 
 )
 
+var config *conf.Config = &conf.Config{}
+// var proxy *CoordinatorProxy
+
+
 func main() {
 	// proxy.TestProxy()
-	yamlFile, err := ioutil.ReadFile("config.yaml")
+	yamlFile, err := ioutil.ReadFile("./config.yaml")
 	if err != nil {
 		log.Println("Read config file error. Exit.")
 		return
 	}
 
-	config := conf.Config{}
-	err = yaml.Unmarshal(yamlFile, &config)
+	log.Printf("%v\n", *config)
+
+	err = yaml.Unmarshal(yamlFile, config)
 	if err != nil {
 		log.Println("Parsing config file error. Exit.")
 		return
@@ -31,4 +36,10 @@ func main() {
 	}
 	fmt.Printf("--- t dump:\n%s\n\n", string(d))
 
+	// start proxy
+
+	CoordinatorProxy.StartProxy(config)
+
+
+	for { }
 }
