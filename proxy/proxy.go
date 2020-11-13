@@ -11,11 +11,17 @@ import (
 var config *conf.Config
 var healthStatus = make(map[string]bool)
 
+var httpClient = http.Client{
+	Timeout: 5 * time.Second,
+}
 
 func checkEndpoint(address string, path string) bool {
-	resp, _ := http.Get(address)
+	return true
 
-	return resp.StatusCode < 400
+	// client.get
+	// resp, _ := http.Get(address)
+
+	// return resp.StatusCode < 400
 }
 
 // EndpointHealthKey returns the key value for check endpoint health status.
@@ -63,6 +69,17 @@ func UpdateConfig(_config *conf.Config) {
 	config = _config
 }
 
+func startListening() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
+        fmt.Fprintf(w, "Hello!")
+	})
+
+    fmt.Printf("Starting server at port %v\n", config.Port)
+    if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", config.Port), nil); err != nil {
+        log.Fatal(err)
+    }
+}
+
 
 // StartProxy starts a proxy with config
 func StartProxy(newConfig *conf.Config) {
@@ -70,4 +87,5 @@ func StartProxy(newConfig *conf.Config) {
 
 	startHealthCheck()
 
+	startListening()
 }

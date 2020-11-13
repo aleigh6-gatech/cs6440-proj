@@ -15,7 +15,8 @@ var config *conf.Config = &conf.Config{}
 
 
 func main() {
-	// proxy.TestProxy()
+	// loading config
+
 	yamlFile, err := ioutil.ReadFile("./config.yaml")
 	if err != nil {
 		log.Println("Read config file error. Exit.")
@@ -37,9 +38,10 @@ func main() {
 	fmt.Printf("--- t dump:\n%s\n\n", string(d))
 
 	// start proxy
-
 	CoordinatorProxy.StartProxy(config)
 
+	// start coordinator server
 
+	fmt.Printf("Finished\n")
 	for { }
 }
