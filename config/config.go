@@ -2,19 +2,19 @@ package config
 
 // Config of the coordinator
 type Config struct {
-	Clusters []cluster
+	Clusters []Cluster
 
-	Routes []route
+	Routes []Route
 
 	HealthCheckInterval int `yaml:"health_check_interval" default:"3"`
 }
 
-type cluster struct {
+type Cluster struct {
 	Name string
-	Backends []string
+	Endpoints []string // address of endpoints
 }
 
-type route struct {
+type Route struct {
 	Path string
 	Clusters []string
 }

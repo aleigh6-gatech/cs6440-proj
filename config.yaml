@@ -1,9 +1,9 @@
 clusters:
   - name: control
-    backends:
+    endpoints:
       - control
   - name: app
-    backends:
+    endpoints:
       - leader-address
       - replica-address
 routes:
