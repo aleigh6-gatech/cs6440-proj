@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"strings"
 	"net/http"
 	"fmt"
 	"time"
@@ -17,6 +18,7 @@ var httpClient = http.Client{
 
 func checkEndpoint(address string, path string) bool {
 	return true
+
 
 	// client.get
 	// resp, _ := http.Get(address)
@@ -69,9 +71,44 @@ func UpdateConfig(_config *conf.Config) {
 	config = _config
 }
 
+func forwardRequest(req *http.Request, endpoint string) {
+	log.Printf("request forwarded to %s\n", endpoint)
+
+}
+
+func urlMatch(pattern string, url string) bool {
+
+	log.Printf("path: %v\n", url)
+	if pos := strings.Index(url, "//"); pos >= 0 { // url does not contains protocol
+		url = url[pos+2:]
+	}
+
+	tokens := strings.Split(url, "/")
+	requestPath := "/" + strings.Join(tokens[1:], "/")
+	log.Printf("path: %v, pattern %v, matches %v\n", url, pattern, strings.HasPrefix(requestPath, pattern))
+
+	return strings.HasPrefix(requestPath, pattern)
+}
+
+
+func routeRequest(req *http.Request) {
+	for _, route := range config.Routes {
+		if urlMatch(route.Path, req.RequestURI) {
+			// forward request to all the clusters
+			for _, clusterName := range route.Clusters {
+				bestEndpoint := BestEndpointInCluster(clusterName)
+
+				forwardRequest(req, bestEndpoint)
+			}
+		}
+	}
+}
+
+
 func startListening() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
-        fmt.Fprintf(w, "Hello!")
+
+		routeRequest(r)
 	})
 
     fmt.Printf("Starting server at port %v\n", config.Port)

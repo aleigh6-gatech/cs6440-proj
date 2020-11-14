@@ -10,7 +10,7 @@ routes:
   - path: "/admin"
     clusters:
       - control
-  - path: "*"
+  - path: "/"
     clusters:
       - app
       - control
