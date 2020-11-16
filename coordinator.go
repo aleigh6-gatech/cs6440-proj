@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 	conf "coordinator/config"
 	"gopkg.in/yaml.v2"
-	CoordinatorProxy "coordinator/proxy"
-
+	Proxy "coordinator/proxy"
+	// DataSync "coordinator/data_sync"
 )
 
 var config *conf.Config = &conf.Config{}
@@ -38,7 +38,9 @@ func main() {
 	fmt.Printf("--- t dump:\n%s\n\n", string(d))
 
 	// start proxy
-	CoordinatorProxy.StartProxy(config)
+	Proxy.StartProxy(config)
+
+
 
 	// start coordinator server
 

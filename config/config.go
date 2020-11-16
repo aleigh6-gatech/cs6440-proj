@@ -7,6 +7,7 @@ type Config struct {
 	Routes []Route
 
 	HealthCheckInterval int `yaml:"health_check_interval" default:"3"`
+	DataSyncInterval int `yaml:"data_sync_interval" default:"1"`
 	Port int
 }
 

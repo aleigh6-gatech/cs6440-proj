@@ -4,8 +4,10 @@ clusters:
       - control
   - name: app
     endpoints:
-      - leader-address
-      - replica-address
+      - http://www.google.com
+      - http://www.youtube.com
+      # - leader-address
+      # - replica-address
 routes:
   - path: "/admin"
     clusters:
@@ -13,6 +15,6 @@ routes:
   - path: "/"
     clusters:
       - app
-      - control
+      # - control
 health_check_interval: 3
 port: 7000

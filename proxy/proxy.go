@@ -1,12 +1,16 @@
 package proxy
 
 import (
-	"strings"
-	"net/http"
+	"net/http/httptest"
+	conf "coordinator/config"
+	"coordinator/util"
 	"fmt"
+	"log"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
 	"time"
-	 conf "coordinator/config"
-	 "log"
 )
 
 var config *conf.Config
@@ -17,18 +21,12 @@ var httpClient = http.Client{
 }
 
 func checkEndpoint(address string, path string) bool {
-	return true
-
-
-	// client.get
-	// resp, _ := http.Get(address)
-
-	// return resp.StatusCode < 400
-}
-
-// EndpointHealthKey returns the key value for check endpoint health status.
-func EndpointHealthKey(clusterName string, endpoint string) string {
-	return fmt.Sprintf("%v#%v", clusterName, endpoint)
+	fullURL := fmt.Sprintf("%v/%v", address, path)
+	resp, err := http.Get(fullURL)
+	if err != nil {
+		return false
+	}
+	return resp.StatusCode < 400
 }
 
 func startHealthCheck() {
@@ -37,15 +35,15 @@ func startHealthCheck() {
 			for _, cluster := range config.Clusters {
 				for _, endpoint := range cluster.Endpoints {
 					if checkEndpoint(endpoint, "") {
-						healthStatus[EndpointHealthKey(cluster.Name, endpoint)] = true
+						healthStatus[util.EndpointFullname(cluster.Name, endpoint)] = true
 					} else {
-						healthStatus[EndpointHealthKey(cluster.Name, endpoint)] = false
+						healthStatus[util.EndpointFullname(cluster.Name, endpoint)] = false
 					}
 				}
 			}
 
 			// sleep
-			time.Sleep( time.Duration(config.HealthCheckInterval) * time.Second )
+			time.Sleep(time.Duration(config.HealthCheckInterval) * time.Second)
 		}
 	}()
 	log.Println("Proxy starts health check backends")
@@ -56,7 +54,7 @@ func BestEndpointInCluster(clusterName string) string {
 	for _, cluster := range config.Clusters {
 		if cluster.Name == clusterName {
 			for _, endpoint := range cluster.Endpoints {
-				healthKey := EndpointHealthKey(clusterName, endpoint)
+				healthKey := util.EndpointFullname(clusterName, endpoint)
 				if healthStatus[healthKey] {
 					return endpoint
 				}
@@ -71,52 +69,86 @@ func UpdateConfig(_config *conf.Config) {
 	config = _config
 }
 
-func forwardRequest(req *http.Request, endpoint string) {
-	log.Printf("request forwarded to %s\n", endpoint)
-
-}
-
-func urlMatch(pattern string, url string) bool {
-
-	log.Printf("path: %v\n", url)
+func getSitePath(url string) string {
 	if pos := strings.Index(url, "//"); pos >= 0 { // url does not contains protocol
 		url = url[pos+2:]
 	}
 
 	tokens := strings.Split(url, "/")
 	requestPath := "/" + strings.Join(tokens[1:], "/")
+	return requestPath
+}
+
+func forwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter) {
+	// get request path
+	sitePath := getSitePath(req.RequestURI)
+
+	log.Printf("forwarding request to %s, path %s\n", endpoint, sitePath)
+	endpointURL, _ := url.Parse(endpoint)
+
+	// create the reverse proxy
+	proxy := httputil.NewSingleHostReverseProxy(endpointURL)
+
+	// Update the headers to allow for SSL redirection
+	req.URL.Host = endpointURL.Host
+	req.URL.Scheme = endpointURL.Scheme
+	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+	req.Host = endpointURL.Host
+
+	// Note that ServeHttp is non blocking and uses a go routine under the hood
+	proxy.ServeHTTP(resp, req)
+	log.Printf("request forwarded to %s, path %s\n", endpointURL, sitePath)
+}
+
+func urlMatch(pattern string, url string) bool {
+	requestPath := getSitePath(url)
 	log.Printf("path: %v, pattern %v, matches %v\n", url, pattern, strings.HasPrefix(requestPath, pattern))
 
 	return strings.HasPrefix(requestPath, pattern)
 }
 
+func getClusterFromConfig(clusterName string) conf.Cluster {
+	for _, cluster := range(config.Clusters) {
+		if cluster.Name == clusterName {
+			return cluster
+		}
+	}
+	return conf.Cluster{}
+}
 
-func routeRequest(req *http.Request) {
+func routeRequest(req *http.Request, resp http.ResponseWriter) {
 	for _, route := range config.Routes {
 		if urlMatch(route.Path, req.RequestURI) {
 			// forward request to all the clusters
 			for _, clusterName := range route.Clusters {
 				bestEndpoint := BestEndpointInCluster(clusterName)
 
-				forwardRequest(req, bestEndpoint)
+				// forward request to each endpoint in the cluster
+				cluster := getClusterFromConfig(clusterName)
+
+				for _, endpoint := range cluster.Endpoints {
+					if endpoint != bestEndpoint {
+						log.Printf("%v is not the best endpoint. Skip", endpoint)
+						forwardRequest(bestEndpoint, req, httptest.NewRecorder())
+					} else {
+						forwardRequest(bestEndpoint, req, resp)
+					}
+				}
 			}
 		}
 	}
 }
 
-
 func startListening() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request){
-
-		routeRequest(r)
+	http.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
+		routeRequest(req, resp)
 	})
 
-    fmt.Printf("Starting server at port %v\n", config.Port)
-    if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", config.Port), nil); err != nil {
-        log.Fatal(err)
-    }
+	fmt.Printf("Starting server at port %v\n", config.Port)
+	if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", config.Port), nil); err != nil {
+		log.Fatal(err)
+	}
 }
-
 
 // StartProxy starts a proxy with config
 func StartProxy(newConfig *conf.Config) {
