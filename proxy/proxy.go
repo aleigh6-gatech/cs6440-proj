@@ -135,6 +135,7 @@ func routeRequest(req *http.Request, resp http.ResponseWriter) {
 					}
 				}
 			}
+			break
 		}
 	}
 }
@@ -156,5 +157,5 @@ func StartProxy(newConfig *conf.Config) {
 
 	startHealthCheck()
 
-	startListening()
+	go startListening()
 }

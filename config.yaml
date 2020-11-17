@@ -1,7 +1,7 @@
 clusters:
   - name: control
     endpoints:
-      - control
+      - http://localhost:3000
   - name: app
     endpoints:
       - http://www.google.com

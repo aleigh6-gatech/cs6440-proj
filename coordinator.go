@@ -7,6 +7,7 @@ import (
 	conf "coordinator/config"
 	"gopkg.in/yaml.v2"
 	Proxy "coordinator/proxy"
+	"coordinator/web"
 	// DataSync "coordinator/data_sync"
 )
 
@@ -38,11 +39,11 @@ func main() {
 	fmt.Printf("--- t dump:\n%s\n\n", string(d))
 
 	// start proxy
-	Proxy.StartProxy(config)
+	go Proxy.StartProxy(config)
 
+	// start coordinator web server
+	go web.StartWeb()
 
-
-	// start coordinator server
 
 	fmt.Printf("Finished\n")
 	for { }
