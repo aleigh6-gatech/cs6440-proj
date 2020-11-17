@@ -23,6 +23,7 @@ var httpClient = http.Client{
 func checkEndpoint(address string, path string) bool {
 	fullURL := fmt.Sprintf("%v/%v", address, path)
 	resp, err := http.Get(fullURL)
+	defer resp.Body.Close()
 	if err != nil {
 		return false
 	}

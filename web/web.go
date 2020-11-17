@@ -6,18 +6,31 @@ import (
 	"github.com/martini-contrib/render"
 	"github.com/go-martini/martini"
 	"log"
-
+	conf "coordinator/config"
 )
 
 var m martini.ClassicMartini
 
+var config *conf.Config
 
-func StartWeb() {
+// StartWeb starts web app
+func StartWeb(_config *conf.Config) {
+	config = _config
+
 	m := martini.Classic()
-	m.Use(render.Renderer())
+	m.Use(render.Renderer(render.Options{
+		Extensions: []string{".html"},
+	}))
 
 	m.Get("/admin", func(r render.Render){
-		r.HTML(200, "index", "world")
+
+		inst := struct {
+			HealthcheckInterval int
+		}{
+			HealthcheckInterval: config.HealthCheckInterval,
+		}
+
+		r.HTML(200, "index", inst)
 	})
 
 	m.Get("/", func() string {

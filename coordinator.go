@@ -42,7 +42,7 @@ func main() {
 	go Proxy.StartProxy(config)
 
 	// start coordinator web server
-	go web.StartWeb()
+	go web.StartWeb(config)
 
 
 	fmt.Printf("Finished\n")
