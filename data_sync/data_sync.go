@@ -22,16 +22,22 @@ var cursors map[string]int
 
 var counter int
 
+// AddTransaction adds transaction into the transactions cache
 func AddTransaction(req *http.Request) {
 	// save a copy of the request to transacitons
+	leng := len(transactions)
+	latestSeq := transactions[leng-1].seq + 1
+	newTransaction := wrapRequest{ seq: latestSeq, request: *req }
+	transactions = append(transactions, newTransaction)
 }
 
 
-func testBackfillData(clusterName string, endpoint string) {
+func backfillData(clusterName string, endpoint string) {
 	// find start in transactions
 	endpointFullname := util.EndpointFullname(clusterName, endpoint)
 	cursor := cursors[endpointFullname]
 	startIdx := -1
+	// find the starting point for the endpoint to backfill
 	for i, tx := range(transactions) {
 		if tx.seq > cursor {
 			startIdx = i
@@ -39,7 +45,7 @@ func testBackfillData(clusterName string, endpoint string) {
 		}
 	}
 
-	if startIdx != -1 {
+	if startIdx != -1 { // needs backfill
 		// check connection
 		if !util.CheckEndpoint(endpoint, "") {
 			log.Printf("Endpoint %v check failed during backfill. Postponed\n", endpoint)
@@ -109,7 +115,7 @@ func StartDataSync(newConfig *conf.Config) {
 			for _, cluster := range config.Clusters {
 				// looping endpoints
 				for _, endpoint := range cluster.Endpoints {
-					testBackfillData(cluster.Name, endpoint)
+					backfillData(cluster.Name, endpoint)
 				}
 			}
 
