@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"coordinator/proxy"
 	"coordinator/web"
-	// DataSync "coordinator/data_sync"
+	"coordinator/data_sync"
 )
 
 var config *conf.Config = &conf.Config{}
@@ -44,6 +44,7 @@ func main() {
 	// start coordinator web server
 	go web.StartWeb(config)
 
+	go data_sync.StartDataSync(config)
 
 	fmt.Printf("Finished\n")
 	for { }

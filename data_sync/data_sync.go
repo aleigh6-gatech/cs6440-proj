@@ -18,7 +18,8 @@ type wrapRequest struct {
 
 var transactions []wrapRequest
 
-var cursors map[string]int
+// Cursors stores the latest transaction seq number for each endpoint
+var Cursors = make(map[string]int)
 
 var counter int
 
@@ -35,7 +36,7 @@ func AddTransaction(req *http.Request) {
 func backfillData(clusterName string, endpoint string) {
 	// find start in transactions
 	endpointFullname := util.EndpointFullname(clusterName, endpoint)
-	cursor := cursors[endpointFullname]
+	cursor := Cursors[endpointFullname]
 	startIdx := -1
 	// find the starting point for the endpoint to backfill
 	for i, tx := range(transactions) {
@@ -54,7 +55,7 @@ func backfillData(clusterName string, endpoint string) {
 
 		// backfill data
 		for _, tx := range(transactions[startIdx:]) {
-			// send the request again, and update cursors
+			// send the request again, and update Cursors
 			req := tx.request
 			contentType := req.Header.Get("Content-type")
 			_, err := http.Post(req.RequestURI, contentType, req.Body)
@@ -62,7 +63,7 @@ func backfillData(clusterName string, endpoint string) {
 				break
 			}
 
-			cursors[endpointFullname]++
+			Cursors[endpointFullname]++
 		}
 	}
 }
@@ -71,12 +72,13 @@ func backfillData(clusterName string, endpoint string) {
 func swipeTxs() {
 	log.Println("swiping txs")
 
-	if len(cursors) == 0 {
+	if len(Cursors) == 0 {
 		return
 	}
 
+
 	minCursor := -1
-	for _, cursor := range(cursors) {
+	for _, cursor := range(Cursors) {
 		if minCursor == -1 {
 			minCursor = cursor
 		} else if cursor < minCursor {
@@ -85,7 +87,7 @@ func swipeTxs() {
 	}
 
 	swipeCount := 0
-	for {
+	for (len(transactions) > 0) {
 		tx := transactions[0]
 		if tx.seq < minCursor {
 			transactions = transactions[1:]
@@ -101,10 +103,10 @@ func swipeTxs() {
 func StartDataSync(newConfig *conf.Config) {
 	config = newConfig
 
-	// init transacitons, cursors
+	// init transacitons, Cursors
 	for _, cluster := range config.Clusters {
 		for _, endpoint := range cluster.Endpoints {
-			cursors[util.EndpointFullname(cluster.Name, endpoint)] = 0
+			Cursors[util.EndpointFullname(cluster.Name, endpoint)] = 0
 		}
 	}
 

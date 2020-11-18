@@ -10,14 +10,21 @@
     <div class="container">
         <h1>High Availability System Coordinator</h1>
 
+    </div>
+
+
+    <div class="container mt-5">
         <h3>Server Diagram (TODO)</h3>
 
+    </div>
 
-
+    <div class="container mt-5">
         <h3>Coordinator configurations</h3>
         <p>Healthcheck interval: {{ .HealthcheckInterval }}s </p>
 
+    </div>
 
+    <div class="container mt-5">
         <h3>Server healthiness</h3>
 
         <table class="table text-center">
@@ -39,10 +46,30 @@
 
             {{ end }}
         </table>
-
-
-        <h3>Data synchronization</h3>
     </div>
+
+
+    <div class="container mt-5">
+        <h3>Data synchronization</h3>
+
+        <table class="table text-center">
+            <tr>
+                <th>Cluster</th>
+                <th>Endpoint</th>
+                <th>Number of transactions</th>
+            </tr>
+            {{ range .DataSync }}
+            <tr>
+                <td>{{ .Cluster }}</td>
+                <td>{{ .Endpoint }}</td>
+                <td>{{ .TransactionSeq }}</td>
+            </tr>
+
+            {{ end }}
+        </table>
+    </div>
+
+
 
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
 </body>

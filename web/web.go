@@ -7,6 +7,7 @@ import (
 	"log"
 	conf "coordinator/config"
 	"coordinator/proxy"
+	"coordinator/data_sync"
 )
 
 var m martini.ClassicMartini
@@ -17,6 +18,17 @@ type healthRow struct {
 	Cluster string
 	Endpoint string
 	Health bool
+}
+
+type dataSyncRow struct {
+	Cluster string
+	Endpoint string
+	TransactionSeq int
+}
+
+func splitEndpointFullname(fullname string) (string, string) {
+	tokens := strings.Split(fullname, "#")
+	return tokens[0], tokens[1]
 }
 
 
@@ -32,25 +44,37 @@ func StartWeb(_config *conf.Config) {
 	m.Get("/admin", func(r render.Render){
 
 		// prepare servers health
-		rows := []healthRow{}
+		healthRows := []healthRow{}
 		for endpointFullname, health := range proxy.HealthStatus {
-			tokens := strings.Split(endpointFullname, "#")
-			log.Printf("%v\n", tokens)
+			cluster, endpoint := splitEndpointFullname(endpointFullname)
 			row := healthRow{
-				Cluster: tokens[0],
-				Endpoint: tokens[1],
+				Cluster: cluster,
+				Endpoint: endpoint,
 				Health: health,
 			}
-			log.Printf("%v\n", row)
-			rows = append(rows, row)
+			healthRows = append(healthRows, row)
+		}
+
+		// prepare sync data
+		dataSyncRows := []dataSyncRow{}
+		for endpointFullname, seq := range data_sync.Cursors {
+			cluster, endpoint := splitEndpointFullname(endpointFullname)
+			row := dataSyncRow{
+				Cluster: cluster,
+				Endpoint: endpoint,
+				TransactionSeq: seq,
+			}
+			dataSyncRows = append(dataSyncRows, row)
 		}
 
 		inst := struct {
 			HealthcheckInterval int
 			ServersHealth []healthRow
+			DataSync []dataSyncRow
 		}{
 			HealthcheckInterval: config.HealthCheckInterval,
-			ServersHealth: rows,
+			ServersHealth: healthRows,
+			DataSync: dataSyncRows,
 		}
 
 		r.HTML(200, "index", inst)
