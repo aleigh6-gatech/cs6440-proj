@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	conf "coordinator/config"
 	"gopkg.in/yaml.v2"
-	Proxy "coordinator/proxy"
+	"coordinator/proxy"
 	"coordinator/web"
 	// DataSync "coordinator/data_sync"
 )
@@ -39,7 +39,7 @@ func main() {
 	fmt.Printf("--- t dump:\n%s\n\n", string(d))
 
 	// start proxy
-	go Proxy.StartProxy(config)
+	go proxy.StartProxy(config)
 
 	// start coordinator web server
 	go web.StartWeb(config)

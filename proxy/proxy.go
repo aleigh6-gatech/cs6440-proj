@@ -14,7 +14,9 @@ import (
 )
 
 var config *conf.Config
-var healthStatus = make(map[string]bool)
+
+// HealthStatus is from full endpoint name to boolean
+var HealthStatus = make(map[string]bool)
 
 var httpClient = http.Client{
 	Timeout: 5 * time.Second,
@@ -36,9 +38,9 @@ func startHealthCheck() {
 			for _, cluster := range config.Clusters {
 				for _, endpoint := range cluster.Endpoints {
 					if checkEndpoint(endpoint, "") {
-						healthStatus[util.EndpointFullname(cluster.Name, endpoint)] = true
+						HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = true
 					} else {
-						healthStatus[util.EndpointFullname(cluster.Name, endpoint)] = false
+						HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = false
 					}
 				}
 			}
@@ -56,7 +58,7 @@ func BestEndpointInCluster(clusterName string) string {
 		if cluster.Name == clusterName {
 			for _, endpoint := range cluster.Endpoints {
 				healthKey := util.EndpointFullname(clusterName, endpoint)
-				if healthStatus[healthKey] {
+				if HealthStatus[healthKey] {
 					return endpoint
 				}
 			}

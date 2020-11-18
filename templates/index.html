@@ -20,6 +20,25 @@
 
         <h3>Server healthiness</h3>
 
+        <table class="table text-center">
+            <tr>
+                <th>Cluster</th>
+                <th>Endpoint</th>
+                <th>Availability</th>
+            </tr>
+            {{ range .ServersHealth }}
+            <tr>
+                <td>{{ .Cluster }}</td>
+                <td>{{ .Endpoint }}</td>
+                {{ if eq .Health true }}
+                <td><span class="badge badge-success">Healthy</span></td>
+                {{ else }}
+                <td><span class="badge badge-danger">Unhealthy</span></td>
+                {{ end }}
+            </tr>
+
+            {{ end }}
+        </table>
 
 
         <h3>Data synchronization</h3>
