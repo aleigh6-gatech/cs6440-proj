@@ -13,8 +13,6 @@ import (
 )
 
 var config *conf.Config = &conf.Config{}
-// var proxy *CoordinatorProxy
-
 
 func main() {
 	// loading config

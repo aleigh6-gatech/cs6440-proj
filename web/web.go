@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net/http"
 	"strings"
 	"github.com/martini-contrib/render"
 	"github.com/go-martini/martini"
@@ -77,22 +78,31 @@ func getStatusResponse() StatusResponse {
 func StartWeb(_config *conf.Config) {
 	config = _config
 
-	m := martini.Classic()
+	m := martini.Classic() // default port 3000
 	m.Use(render.Renderer(render.Options{
 		Extensions: []string{".html"},
 	}))
 
 	m.Get("/admin", func(r render.Render){
 		statusResp := getStatusResponse()
+		var latestSeq int
+		leng := len(dataSync.Transactions)
+		if leng == 0 {
+			latestSeq = -1
+		} else {
+			latestSeq = dataSync.Transactions[leng-1].Seq
+		}
 
 		inst := struct {
 			HealthcheckInterval int
 			ServersHealth []healthRow
 			DataSync []dataSyncRow
+			LatestSeq int
 		}{
 			HealthcheckInterval: config.HealthCheckInterval,
 			ServersHealth: statusResp.Healths,
 			DataSync: statusResp.DataSyncs,
+			LatestSeq: latestSeq,
 		}
 
 		r.HTML(200, "index", inst)
@@ -112,7 +122,18 @@ func StartWeb(_config *conf.Config) {
 		return string(b)
 	})
 
-	// m.RunOnAddr(":8080")
+	m.Get("/**", func(res http.ResponseWriter, req *http.Request) string {
+		return req.RequestURI
+	})
+
+	m.Post("/**", func(res http.ResponseWriter, req *http.Request) string {
+		ret := dataSync.AddTransaction(req)
+		log.Printf("POST request: %v\n", ret)
+		res.Write([]byte(string(ret)))
+		return string(ret)
+	})
+
+
 	m.Run()
 	log.Println("Martini started")
 }

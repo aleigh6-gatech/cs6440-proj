@@ -18,7 +18,7 @@ routes:
   - path: "/"
     clusters:
       - app
-      # - control
+      - control # control has data_sync, which will cache POST request
 health_check_interval: 3
 data_sync_interval: 3
 port: 7000

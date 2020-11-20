@@ -10,13 +10,13 @@ import (
 
 var config *conf.Config
 
-type wrapRequest struct {
-	seq int
+type WrapRequest struct {
+	Seq int
 	request http.Request
 }
 
 
-var transactions []wrapRequest
+var Transactions = []WrapRequest{}
 
 // Cursors stores the latest transaction seq number for each endpoint
 var Cursors = make(map[string]int)
@@ -24,14 +24,20 @@ var Cursors = make(map[string]int)
 var counter int
 
 // AddTransaction adds transaction into the transactions cache
-func AddTransaction(req *http.Request) {
+func AddTransaction(req *http.Request) int {
 	// save a copy of the request to transacitons
-	leng := len(transactions)
-	latestSeq := transactions[leng-1].seq + 1
-	newTransaction := wrapRequest{ seq: latestSeq, request: *req }
-	transactions = append(transactions, newTransaction)
-}
+	leng := len(Transactions)
+	var latestSeq int
+	if leng == 0 {
+		latestSeq = 0
+	} else {
+		latestSeq = Transactions[leng-1].Seq + 1
+	}
+	newTransaction := WrapRequest{ Seq: latestSeq, request: *req }
+	Transactions = append(Transactions, newTransaction)
 
+	return latestSeq
+}
 
 func backfillDataFor(clusterName string, endpoint string) {
 	// find start in transactions
@@ -39,8 +45,8 @@ func backfillDataFor(clusterName string, endpoint string) {
 	cursor := Cursors[endpointFullname]
 	startIdx := -1
 	// find the starting point for the endpoint to backfill
-	for i, tx := range(transactions) {
-		if tx.seq > cursor {
+	for i, tx := range(Transactions) {
+		if tx.Seq > cursor {
 			startIdx = i
 			break
 		}
@@ -54,7 +60,7 @@ func backfillDataFor(clusterName string, endpoint string) {
 		}
 
 		// backfill data
-		for _, tx := range(transactions[startIdx:]) {
+		for _, tx := range(Transactions[startIdx:]) {
 			// send the request again, and update Cursors
 			req := tx.request
 			contentType := req.Header.Get("Content-type")
@@ -87,10 +93,10 @@ func swipeTxs() {
 	}
 
 	swipeCount := 0
-	for (len(transactions) > 0) {
-		tx := transactions[0]
-		if tx.seq < minCursor {
-			transactions = transactions[1:]
+	for (len(Transactions) > 0) {
+		tx := Transactions[0]
+		if tx.Seq < minCursor {
+			Transactions = Transactions[1:]
 			swipeCount++
 		} else{
 			break
