@@ -1,4 +1,4 @@
-package data_sync
+package dataSync
 
 import (
 	"log"
@@ -33,7 +33,7 @@ func AddTransaction(req *http.Request) {
 }
 
 
-func backfillData(clusterName string, endpoint string) {
+func backfillDataFor(clusterName string, endpoint string) {
 	// find start in transactions
 	endpointFullname := util.EndpointFullname(clusterName, endpoint)
 	cursor := Cursors[endpointFullname]
@@ -99,9 +99,22 @@ func swipeTxs() {
 	log.Printf("Swiped data: %v\n", swipeCount)
 }
 
+func backfillData() {
+	for _, cluster := range config.Clusters {
+		// looping endpoints
+		for _, endpoint := range cluster.Endpoints {
+			backfillDataFor(cluster.Name, endpoint)
+		}
+	}
+}
+
 // StartDataSync starts a thread to monitor and sync data
 func StartDataSync(newConfig *conf.Config) {
 	config = newConfig
+
+	backfillTicker := time.NewTicker(time.Duration(config.DataSyncInterval) * time.Second)
+	swipeTicker := time.NewTicker(5 * time.Second)
+
 
 	// init transacitons, Cursors
 	for _, cluster := range config.Clusters {
@@ -110,32 +123,12 @@ func StartDataSync(newConfig *conf.Config) {
 		}
 	}
 
-	// backfill data loop
-	go func() {
-		for {
-			// looping clusters
-			for _, cluster := range config.Clusters {
-				// looping endpoints
-				for _, endpoint := range cluster.Endpoints {
-					backfillData(cluster.Name, endpoint)
-				}
-			}
-
-
-			// sleep
-			time.Sleep( time.Duration(config.DataSyncInterval) * time.Second )
+	for {
+		select {
+			case <- backfillTicker.C:
+				backfillData()
+			case <- swipeTicker.C:
+				swipeTxs()
 		}
-	}()
-
-
-	// swipe transactions
-	go func() {
-		for {
-			swipeTxs()
-
-			// sleep
-			time.Sleep( time.Duration(5) * time.Second )
-		}
-	}()
-
+	}
 }

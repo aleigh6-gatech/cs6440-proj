@@ -9,6 +9,7 @@ require (
 	github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0 // indirect
 	github.com/go-martini/martini v0.0.0-20170121215854-22fa46961aab
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect

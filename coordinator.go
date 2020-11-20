@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sync"
 	"fmt"
 	"log"
 	"io/ioutil"
@@ -38,14 +39,19 @@ func main() {
 	}
 	fmt.Printf("--- t dump:\n%s\n\n", string(d))
 
+	var wg sync.WaitGroup
+
 	// start proxy
+	wg.Add(1)
 	go proxy.StartProxy(config)
 
 	// start coordinator web server
+	wg.Add(1)
 	go web.StartWeb(config)
 
-	go data_sync.StartDataSync(config)
+	wg.Add(1)
+	go dataSync.StartDataSync(config)
 
 	fmt.Printf("Finished\n")
-	for { }
+	wg.Wait()
 }

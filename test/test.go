@@ -1,33 +1,40 @@
 package main
 
 import (
-	"net/url"
-	// "encoding/binary"
+	// "net/url"
+	// // "encoding/binary"
 	"fmt"
-	"net/http"
+	// "net/http"
+	// "database/sql"
+	// "github.com/go-sql-driver/mysql"
+	"time"
 )
 
-func checkEndpoint(address string, path string) bool {
-	fullURL := fmt.Sprintf("http://%v/%v", address, path)
-	resp, err := http.Get(fullURL)
-	if err != nil {
-		return false
-	}
-	return resp.StatusCode < 400
-}
+// func checkEndpoint(address string, path string) bool {
+// 	fullURL := fmt.Sprintf("http://%v/%v", address, path)
+// 	resp, err := http.Get(fullURL)
+// 	if err != nil {
+// 		return false
+// 	}
+// 	return resp.StatusCode < 400
+// }
 
 
 func main() {
-	// s := "rtest afdasfdas "
+	// db, _ := sql.Open("mysql", "admin:admin@127.0.0.1:3007/hapi")
+	// db.Query("select * from patients")
 
-	// bm := BinaryMarshaler{}
-	// bu := BinaryUnmarshaler{}
+	uptimeTicker := time.NewTicker(5 * time.Second)
+	dateTicker := time.NewTicker(10 * time.Second)
 
-	// resp, _ := http.Get("http://google.com")
-	// fmt.Printf("%v\n", checkEndpoint("google.com", ""))
-
-	url, _ := url.Parse("google.com")
-	fmt.Printf("%v\n", url)
+	for {
+		select {
+		case <-uptimeTicker.C:
+			fmt.Println("uptime")
+		case <-dateTicker.C:
+			fmt.Println("date")
+		}
+	}
 }
 
 

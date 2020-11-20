@@ -25,28 +25,31 @@ var httpClient = http.Client{
 func checkEndpoint(address string, path string) bool {
 	fullURL := fmt.Sprintf("%v/%v", address, path)
 	resp, err := http.Get(fullURL)
-	defer resp.Body.Close()
+	log.Printf("check endpoint: %v\n", fullURL)
 	if err != nil {
 		return false
 	}
+	defer resp.Body.Close()
 	return resp.StatusCode < 400
 }
 
 func startHealthCheck() {
+	ticker := time.NewTicker(time.Duration(config.HealthCheckInterval) * time.Second)
+
 	go func() {
 		for {
-			for _, cluster := range config.Clusters {
-				for _, endpoint := range cluster.Endpoints {
-					if checkEndpoint(endpoint, "") {
-						HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = true
-					} else {
-						HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = false
+			select {
+			case <- ticker.C:
+				for _, cluster := range config.Clusters {
+					for _, endpoint := range cluster.Endpoints {
+						if checkEndpoint(endpoint, "") {
+							HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = true
+						} else {
+							HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = false
+						}
 					}
 				}
 			}
-
-			// sleep
-			time.Sleep(time.Duration(config.HealthCheckInterval) * time.Second)
 		}
 	}()
 	log.Println("Proxy starts health check backends")

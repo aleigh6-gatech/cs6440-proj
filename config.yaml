@@ -3,9 +3,12 @@ clusters:
     endpoints:
       - http://localhost:3000
   - name: app
-    endpoints:
-      - http://www.google.com
-      - http://www.youtube.com
+    endpoints: # DON'T FORGET PROTOCOL SEGMENT
+      # - http://www.google.com
+      # - http://www.youtube.com
+
+      - http://127.0.0.1:8081
+      - http://127.0.0.1:8082
       # - leader-address
       # - replica-address
 routes:
@@ -17,4 +20,5 @@ routes:
       - app
       # - control
 health_check_interval: 3
+data_sync_interval: 3
 port: 7000
