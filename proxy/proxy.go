@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"coordinator/data_sync"
 	"net/http/httptest"
 	conf "coordinator/config"
 	"coordinator/util"
@@ -60,8 +61,8 @@ func BestEndpointInCluster(clusterName string) string {
 	for _, cluster := range config.Clusters {
 		if cluster.Name == clusterName {
 			for _, endpoint := range cluster.Endpoints {
-				healthKey := util.EndpointFullname(clusterName, endpoint)
-				if HealthStatus[healthKey] {
+				endpointFullname := util.EndpointFullname(clusterName, endpoint)
+				if HealthStatus[endpointFullname] {
 					return endpoint
 				}
 			}
@@ -85,7 +86,8 @@ func getSitePath(url string) string {
 	return requestPath
 }
 
-func forwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter) {
+// ForwardRequest forwards request to endpoint
+func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter) bool {
 	// get request path
 	sitePath := getSitePath(req.RequestURI)
 
@@ -102,8 +104,15 @@ func forwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 	req.Host = endpointURL.Host
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
-	proxy.ServeHTTP(resp, req)
-	log.Printf("request forwarded to %s, path %s\n", endpointURL, sitePath)
+
+	// health check before sending
+	if !checkEndpoint(endpoint, "") {
+		return false
+	} else {
+		proxy.ServeHTTP(resp, req)
+		log.Printf("request forwarded to %s, path %s\n", endpointURL, sitePath)
+		return true
+	}
 }
 
 func urlMatch(pattern string, url string) bool {
@@ -122,7 +131,7 @@ func getClusterFromConfig(clusterName string) conf.Cluster {
 	return conf.Cluster{}
 }
 
-func routeRequest(req *http.Request, resp http.ResponseWriter) {
+func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 	for _, route := range config.Routes {
 		if urlMatch(route.Path, req.RequestURI) {
 			// forward request to all the clusters
@@ -133,11 +142,29 @@ func routeRequest(req *http.Request, resp http.ResponseWriter) {
 				cluster := getClusterFromConfig(clusterName)
 
 				for _, endpoint := range cluster.Endpoints {
+					endpointFullname := util.EndpointFullname(clusterName, endpoint)
+
+					// check endpoint health first
+					if !HealthStatus[endpointFullname] {
+						continue
+					}
+
+					if !checkEndpoint(endpoint, "") {
+						HealthStatus[endpointFullname] = false
+						continue
+					}
+
+					// check best endpoint to determine which response to return to the user
 					if endpoint != bestEndpoint {
-						log.Printf("%v is not the best endpoint. Skip", endpoint)
-						forwardRequest(bestEndpoint, req, httptest.NewRecorder())
+						log.Printf("%v is not the best endpoint. Request will be forwarded. Skip writing the response from it", endpoint)
+
+						ForwardRequest(bestEndpoint, req, httptest.NewRecorder())
 					} else {
-						forwardRequest(bestEndpoint, req, resp)
+						ForwardRequest(bestEndpoint, req, resp)
+					}
+
+					if requestSeq != -1 { // POST request
+						dataSync.Cursors[endpointFullname] = requestSeq + 1
 					}
 				}
 			}
@@ -148,7 +175,13 @@ func routeRequest(req *http.Request, resp http.ResponseWriter) {
 
 func startListening() {
 	http.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
-		routeRequest(req, resp)
+		requestSeq := -1
+
+		if req.Method == "POST" {
+			requestSeq = dataSync.AddTransaction(req)
+		}
+
+		routeRequest(req, resp, requestSeq)
 	})
 
 	fmt.Printf("Starting server at port %v\n", config.Port)
@@ -163,5 +196,5 @@ func StartProxy(newConfig *conf.Config) {
 
 	startHealthCheck()
 
-	go startListening()
+	startListening()
 }

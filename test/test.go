@@ -21,9 +21,6 @@ import (
 
 
 func main() {
-	// db, _ := sql.Open("mysql", "admin:admin@127.0.0.1:3007/hapi")
-	// db.Query("select * from patients")
-
 	uptimeTicker := time.NewTicker(5 * time.Second)
 	dateTicker := time.NewTicker(10 * time.Second)
 

@@ -55,6 +55,7 @@ func getStatusResponse() StatusResponse {
 
 	// prepare sync data
 	dataSyncRows := []dataSyncRow{}
+	log.Printf("cursors %v\n", dataSync.Cursors)
 	for endpointFullname, seq := range dataSync.Cursors {
 		cluster, endpoint := splitEndpointFullname(endpointFullname)
 		row := dataSyncRow{
@@ -127,10 +128,12 @@ func StartWeb(_config *conf.Config) {
 	})
 
 	m.Post("/**", func(res http.ResponseWriter, req *http.Request) string {
-		ret := dataSync.AddTransaction(req)
-		log.Printf("POST request: %v\n", ret)
-		res.Write([]byte(string(ret)))
-		return string(ret)
+		return req.RequestURI
+
+		// seq := dataSync.AddTransaction(req)
+		// log.Printf("POST request: %v\n", ret)
+		// res.Write([]byte(string(ret)))
+		// return string(ret)
 	})
 
 

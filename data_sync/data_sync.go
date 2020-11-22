@@ -1,11 +1,14 @@
 package dataSync
 
 import (
+	"context"
+	"net/http/httptest"
 	"log"
 	"time"
 	conf "coordinator/config"
 	"net/http"
 	"coordinator/util"
+	"coordinator/proxy"
 )
 
 var config *conf.Config
@@ -33,17 +36,21 @@ func AddTransaction(req *http.Request) int {
 	} else {
 		latestSeq = Transactions[leng-1].Seq + 1
 	}
-	newTransaction := WrapRequest{ Seq: latestSeq, request: *req }
+	newTransaction := WrapRequest{ Seq: latestSeq, request: *req.Clone(context.TODO()) }
 	Transactions = append(Transactions, newTransaction)
 
 	return latestSeq
 }
 
 func backfillDataFor(clusterName string, endpoint string) {
+
 	// find start in transactions
 	endpointFullname := util.EndpointFullname(clusterName, endpoint)
 	cursor := Cursors[endpointFullname]
 	startIdx := -1
+
+	log.Printf("DEBUG cursor %v for %v\n", cursor, endpoint)
+
 	// find the starting point for the endpoint to backfill
 	for i, tx := range(Transactions) {
 		if tx.Seq > cursor {
@@ -52,7 +59,9 @@ func backfillDataFor(clusterName string, endpoint string) {
 		}
 	}
 
-	if startIdx != -1 { // needs backfill
+	log.Printf("DEBUG: startIndex %v, transactionns length %v\n", startIdx, len(Transactions))
+
+	if startIdx != -1 && startIdx < len(Transactions) { // needs backfill
 		// check connection
 		if !util.CheckEndpoint(endpoint, "") {
 			log.Printf("Endpoint %v check failed during backfill. Postponed\n", endpoint)
@@ -60,14 +69,31 @@ func backfillDataFor(clusterName string, endpoint string) {
 		}
 
 		// backfill data
+		log.Printf("Backfill for %v %v, started from %v\n", clusterName, endpoint, startIdx)
+
 		for _, tx := range(Transactions[startIdx:]) {
 			// send the request again, and update Cursors
 			req := tx.request
-			contentType := req.Header.Get("Content-type")
-			_, err := http.Post(req.RequestURI, contentType, req.Body)
+
+			// duplicate request
+			replay, err := http.NewRequest(req.Method, req.RequestURI, req.Body)
 			if err != nil {
+				log.Printf("Error when creating replay request %s %s, %v\n", clusterName, endpoint, err)
 				break
 			}
+			for header, values := range req.Header {
+				for _, value := range values {
+					replay.Header.Add(header, value)
+				}
+			}
+			resp := httptest.NewRecorder()
+
+			// check endpoint health
+			if !proxy.HealthStatus[endpointFullname] {
+				log.Printf("Endpoint %v not healthy. Backfill postponed.", endpointFullname)
+				return
+			}
+			proxy.ForwardRequest(endpoint, replay, resp)
 
 			Cursors[endpointFullname]++
 		}
@@ -78,10 +104,11 @@ func backfillDataFor(clusterName string, endpoint string) {
 func swipeTxs() {
 	log.Println("swiping txs")
 
+	log.Printf("DEBUG len %v\n %v %v\n",  len(Transactions), Transactions, Cursors)
+
 	if len(Cursors) == 0 {
 		return
 	}
-
 
 	minCursor := -1
 	for _, cursor := range(Cursors) {
@@ -91,6 +118,8 @@ func swipeTxs() {
 			minCursor = cursor
 		}
 	}
+
+	log.Printf("DEBUG min cursor %v\n", minCursor)
 
 	swipeCount := 0
 	for (len(Transactions) > 0) {
@@ -114,18 +143,20 @@ func backfillData() {
 	}
 }
 
+func fetchDbCount() {
+
+}
+
 // StartDataSync starts a thread to monitor and sync data
 func StartDataSync(newConfig *conf.Config) {
 	config = newConfig
 
 	backfillTicker := time.NewTicker(time.Duration(config.DataSyncInterval) * time.Second)
-	swipeTicker := time.NewTicker(5 * time.Second)
-
 
 	// init transacitons, Cursors
 	for _, cluster := range config.Clusters {
 		for _, endpoint := range cluster.Endpoints {
-			Cursors[util.EndpointFullname(cluster.Name, endpoint)] = 0
+			Cursors[util.EndpointFullname(cluster.Name, endpoint)] = -1
 		}
 	}
 
@@ -133,7 +164,7 @@ func StartDataSync(newConfig *conf.Config) {
 		select {
 			case <- backfillTicker.C:
 				backfillData()
-			case <- swipeTicker.C:
+				fetchDbCount()
 				swipeTxs()
 		}
 	}

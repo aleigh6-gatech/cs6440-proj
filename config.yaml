@@ -11,6 +11,15 @@ clusters:
       - http://127.0.0.1:8082
       # - leader-address
       # - replica-address
+db_endpoints:
+  - name: app_1
+    host: 127.0.0.1:3307
+    table_name: patients
+    db_name: testdb
+  - name: app_2
+    host: 127.0.0.1:3308
+    table_name: patients
+    db_name: testdb
 routes:
   - path: "/admin"
     clusters:
