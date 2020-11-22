@@ -52,12 +52,12 @@
     <div class="container mt-5">
         <h3>Data synchronization</h3>
 
-        <p>Total transactions: {{ .LatestSeq }}</p>
+        <p>Total transactions: {{ .NumTxs }}</p>
         <table class="table text-center">
             <tr>
                 <th>Cluster</th>
                 <th>Endpoint</th>
-                <th>Number of transactions</th>
+                <th>Number of transactions performed</th>
             </tr>
             {{ range .DataSync }}
             <tr>

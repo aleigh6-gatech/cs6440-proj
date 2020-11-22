@@ -97,12 +97,12 @@ func StartWeb(_config *conf.Config) {
 			HealthcheckInterval int
 			ServersHealth []healthRow
 			DataSync []dataSyncRow
-			LatestSeq int
+			NumTxs int
 		}{
 			HealthcheckInterval: config.HealthCheckInterval,
 			ServersHealth: statusResp.Healths,
 			DataSync: statusResp.DataSyncs,
-			LatestSeq: latestSeq,
+			NumTxs: latestSeq + 1,
 		}
 
 		r.HTML(200, "index", inst)
