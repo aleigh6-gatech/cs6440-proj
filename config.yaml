@@ -1,7 +1,7 @@
 clusters:
   - name: control
     endpoints:
-      - http://localhost:3000
+      - http://127.0.0.1:3000
   - name: app
     endpoints: # DON'T FORGET PROTOCOL SEGMENT
       # - http://www.google.com
@@ -26,7 +26,7 @@ routes:
       - control
   - path: "/"
     clusters:
-      - app
+      # - app
       - control # control has data_sync, which will cache POST request
 health_check_interval: 3
 data_sync_interval: 3

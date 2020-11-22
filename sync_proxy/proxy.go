@@ -1,6 +1,7 @@
 package syncProxy
 
 import (
+	"sync"
 	"net/http/httptest"
 	conf "coordinator/config"
 	"coordinator/util"
@@ -20,17 +21,6 @@ var httpClient = http.Client{
 	Timeout: 5 * time.Second,
 }
 
-func checkEndpoint(address string, path string) bool {
-	fullURL := fmt.Sprintf("%v/%v", address, path)
-	resp, err := http.Get(fullURL)
-	log.Printf("check endpoint: %v\n", fullURL)
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	return resp.StatusCode < 400
-}
-
 func startHealthCheck() {
 	ticker := time.NewTicker(time.Duration(config.HealthCheckInterval) * time.Second)
 
@@ -40,7 +30,7 @@ func startHealthCheck() {
 			case <- ticker.C:
 				for _, cluster := range config.Clusters {
 					for _, endpoint := range cluster.Endpoints {
-						if checkEndpoint(endpoint, "") {
+						if util.CheckEndpoint(endpoint, "") {
 							HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = true
 						} else {
 							HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = false
@@ -88,7 +78,7 @@ func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 	// get request path
 	sitePath := getSitePath(req.RequestURI)
 
-	log.Printf("forwarding request to %s, path %s\n", endpoint, sitePath)
+	log.Printf("forwarding request to %s, path %s, original req %v\n", endpoint, sitePath, req)
 	endpointURL, _ := url.Parse(endpoint)
 
 	// create the reverse proxy
@@ -99,11 +89,13 @@ func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 	req.URL.Scheme = endpointURL.Scheme
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = endpointURL.Host
+	log.Printf("updated req %v\n", req)
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 
 	// health check before sending
-	if !checkEndpoint(endpoint, "") {
+	if !util.CheckEndpoint(endpoint, "") {
+		log.Printf("forwarding request failed. Health check failed for %s\n", endpointURL)
 		return false
 	} else {
 		proxy.ServeHTTP(resp, req)
@@ -131,7 +123,7 @@ func getClusterFromConfig(clusterName string) conf.Cluster {
 func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 	for _, route := range config.Routes {
 		if urlMatch(route.Path, req.RequestURI) {
-			// forward request to all the clusters
+			// forward request to all the listed clusters
 			for _, clusterName := range route.Clusters {
 				bestEndpoint := BestEndpointInCluster(clusterName)
 
@@ -146,7 +138,7 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 						continue
 					}
 
-					if !checkEndpoint(endpoint, "") {
+					if !util.CheckEndpoint(endpoint, "") {
 						HealthStatus[endpointFullname] = false
 						continue
 					}
@@ -161,7 +153,7 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 					}
 
 					if requestSeq != -1 { // POST request
-						Cursors[endpointFullname] = requestSeq + 1
+						Cursors[endpointFullname] = requestSeq
 					}
 				}
 			}
@@ -191,7 +183,16 @@ func startListening() {
 func StartProxy(newConfig *conf.Config) {
 	config = newConfig
 
-	startHealthCheck()
+	var wg sync.WaitGroup
 
-	startListening()
+	wg.Add(1)
+	go startHealthCheck()
+
+	wg.Add(1)
+	go startListening()
+
+	wg.Add(1)
+	go startDataSync()
+
+	wg.Wait()
 }

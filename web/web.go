@@ -24,7 +24,7 @@ type healthRow struct {
 type dataSyncRow struct {
 	Cluster string `json:"cluster"`
 	Endpoint string `json:"endpoint"`
-	TransactionSeq int `json:"transaction_seq"`
+	NumTxs int `json:"num_txs"`
 }
 
 // StatusResponse endpoint status object
@@ -60,7 +60,7 @@ func getStatusResponse() StatusResponse {
 		row := dataSyncRow{
 			Cluster: cluster,
 			Endpoint: endpoint,
-			TransactionSeq: seq,
+			NumTxs: seq + 1,
 		}
 		dataSyncRows = append(dataSyncRows, row)
 	}
@@ -85,13 +85,6 @@ func StartWeb(_config *conf.Config) {
 
 	m.Get("/admin", func(r render.Render){
 		statusResp := getStatusResponse()
-		var latestSeq int
-		leng := len(syncProxy.Transactions)
-		if leng == 0 {
-			latestSeq = -1
-		} else {
-			latestSeq = syncProxy.Transactions[leng-1].Seq
-		}
 
 		inst := struct {
 			HealthcheckInterval int
@@ -102,7 +95,7 @@ func StartWeb(_config *conf.Config) {
 			HealthcheckInterval: config.HealthCheckInterval,
 			ServersHealth: statusResp.Healths,
 			DataSync: statusResp.DataSyncs,
-			NumTxs: latestSeq + 1,
+			NumTxs: syncProxy.NumTxs,
 		}
 
 		r.HTML(200, "index", inst)
@@ -128,11 +121,6 @@ func StartWeb(_config *conf.Config) {
 
 	m.Post("/**", func(res http.ResponseWriter, req *http.Request) string {
 		return req.RequestURI
-
-		// seq := syncProxy.AddTransaction(req)
-		// log.Printf("POST request: %v\n", ret)
-		// res.Write([]byte(string(ret)))
-		// return string(ret)
 	})
 
 

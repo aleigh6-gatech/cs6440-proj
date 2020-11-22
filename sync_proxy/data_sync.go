@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"log"
 	"time"
-	conf "coordinator/config"
 	"net/http"
 	"coordinator/util"
 )
@@ -19,25 +18,21 @@ type WrapRequest struct {
 
 var Transactions = []WrapRequest{}
 
-// Cursors stores the latest transaction seq number for each endpoint
+// Cursors stores the latest transaction seq number that was executed for each endpoint
 var Cursors = make(map[string]int)
 
 var counter int
 
+var NumTxs = 0
+
 // AddTransaction adds transaction into the transactions cache
 func AddTransaction(req *http.Request) int {
 	// save a copy of the request to transacitons
-	leng := len(Transactions)
-	var latestSeq int
-	if leng == 0 {
-		latestSeq = 0
-	} else {
-		latestSeq = Transactions[leng-1].Seq + 1
-	}
-	newTransaction := WrapRequest{ Seq: latestSeq, request: *req.Clone(context.TODO()) }
+	newTransaction := WrapRequest{ Seq: NumTxs, request: *req.Clone(context.TODO()) }
 	Transactions = append(Transactions, newTransaction)
+	NumTxs ++
 
-	return latestSeq
+	return NumTxs-1
 }
 
 func backfillDataFor(clusterName string, endpoint string) {
@@ -65,6 +60,7 @@ func backfillDataFor(clusterName string, endpoint string) {
 			log.Printf("Endpoint %v check failed during backfill. Postponed\n", endpoint)
 			return
 		}
+		HealthStatus[endpointFullname] = true
 
 		// backfill data
 		log.Printf("Backfill for %v %v, started from %v\n", clusterName, endpoint, startIdx)
@@ -84,16 +80,18 @@ func backfillDataFor(clusterName string, endpoint string) {
 					replay.Header.Add(header, value)
 				}
 			}
+			log.Printf("DEBUG Request duplication, %v\nDup: %v\n", req, replay)
 			resp := httptest.NewRecorder()
 
 			// check endpoint health
+			log.Printf("DEBUG health status %v\n", HealthStatus)
 			if !HealthStatus[endpointFullname] {
 				log.Printf("Endpoint %v not healthy. Backfill postponed.", endpointFullname)
 				return
 			}
 			ForwardRequest(endpoint, replay, resp)
 
-			Cursors[endpointFullname]++
+			Cursors[endpointFullname] = tx.Seq
 		}
 	}
 }
@@ -110,9 +108,8 @@ func swipeTxs() {
 
 	minCursor := -1
 	for _, cursor := range(Cursors) {
-		if minCursor == -1 {
-			minCursor = cursor
-		} else if cursor < minCursor {
+		log.Printf("cursor value: %v\n", cursor)
+		if cursor < minCursor {
 			minCursor = cursor
 		}
 	}
@@ -138,6 +135,8 @@ func backfillData() {
 		for _, endpoint := range cluster.Endpoints {
 			backfillDataFor(cluster.Name, endpoint)
 		}
+
+		log.Printf("After backfill\nlen txs %v\ntxs: %v\nNumTxs: %v\nCursors: %v\n", len(Transactions), Transactions, NumTxs, Cursors)
 	}
 }
 
@@ -146,9 +145,7 @@ func fetchDbCount() {
 }
 
 // StartDataSync starts a thread to monitor and sync data
-func StartDataSync(newConfig *conf.Config) {
-	config = newConfig
-
+func startDataSync() {
 	backfillTicker := time.NewTicker(time.Duration(config.DataSyncInterval) * time.Second)
 
 	// init transacitons, Cursors
