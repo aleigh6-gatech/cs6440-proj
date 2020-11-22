@@ -1,7 +1,6 @@
-package proxy
+package syncProxy
 
 import (
-	"coordinator/data_sync"
 	"net/http/httptest"
 	conf "coordinator/config"
 	"coordinator/util"
@@ -13,8 +12,6 @@ import (
 	"strings"
 	"time"
 )
-
-var config *conf.Config
 
 // HealthStatus is from full endpoint name to boolean
 var HealthStatus = make(map[string]bool)
@@ -164,7 +161,7 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 					}
 
 					if requestSeq != -1 { // POST request
-						dataSync.Cursors[endpointFullname] = requestSeq + 1
+						Cursors[endpointFullname] = requestSeq + 1
 					}
 				}
 			}
@@ -178,7 +175,7 @@ func startListening() {
 		requestSeq := -1
 
 		if req.Method == "POST" {
-			requestSeq = dataSync.AddTransaction(req)
+			requestSeq = AddTransaction(req)
 		}
 
 		routeRequest(req, resp, requestSeq)

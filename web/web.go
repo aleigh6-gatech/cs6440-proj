@@ -7,8 +7,7 @@ import (
 	"github.com/go-martini/martini"
 	"log"
 	conf "coordinator/config"
-	"coordinator/proxy"
-	"coordinator/data_sync"
+	"coordinator/sync_proxy"
 	"encoding/json"
 )
 
@@ -43,7 +42,7 @@ func getStatusResponse() StatusResponse {
 
 	// prepare servers health
 	healthRows := []healthRow{}
-	for endpointFullname, health := range proxy.HealthStatus {
+	for endpointFullname, health := range syncProxy.HealthStatus {
 		cluster, endpoint := splitEndpointFullname(endpointFullname)
 		row := healthRow{
 			Cluster: cluster,
@@ -55,8 +54,8 @@ func getStatusResponse() StatusResponse {
 
 	// prepare sync data
 	dataSyncRows := []dataSyncRow{}
-	log.Printf("cursors %v\n", dataSync.Cursors)
-	for endpointFullname, seq := range dataSync.Cursors {
+	log.Printf("cursors %v\n", syncProxy.Cursors)
+	for endpointFullname, seq := range syncProxy.Cursors {
 		cluster, endpoint := splitEndpointFullname(endpointFullname)
 		row := dataSyncRow{
 			Cluster: cluster,
@@ -87,11 +86,11 @@ func StartWeb(_config *conf.Config) {
 	m.Get("/admin", func(r render.Render){
 		statusResp := getStatusResponse()
 		var latestSeq int
-		leng := len(dataSync.Transactions)
+		leng := len(syncProxy.Transactions)
 		if leng == 0 {
 			latestSeq = -1
 		} else {
-			latestSeq = dataSync.Transactions[leng-1].Seq
+			latestSeq = syncProxy.Transactions[leng-1].Seq
 		}
 
 		inst := struct {
@@ -130,7 +129,7 @@ func StartWeb(_config *conf.Config) {
 	m.Post("/**", func(res http.ResponseWriter, req *http.Request) string {
 		return req.RequestURI
 
-		// seq := dataSync.AddTransaction(req)
+		// seq := syncProxy.AddTransaction(req)
 		// log.Printf("POST request: %v\n", ret)
 		// res.Write([]byte(string(ret)))
 		// return string(ret)

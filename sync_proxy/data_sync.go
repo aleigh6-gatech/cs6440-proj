@@ -1,4 +1,4 @@
-package dataSync
+package syncProxy
 
 import (
 	"context"
@@ -8,10 +8,8 @@ import (
 	conf "coordinator/config"
 	"net/http"
 	"coordinator/util"
-	"coordinator/proxy"
 )
 
-var config *conf.Config
 
 type WrapRequest struct {
 	Seq int
@@ -89,11 +87,11 @@ func backfillDataFor(clusterName string, endpoint string) {
 			resp := httptest.NewRecorder()
 
 			// check endpoint health
-			if !proxy.HealthStatus[endpointFullname] {
+			if !HealthStatus[endpointFullname] {
 				log.Printf("Endpoint %v not healthy. Backfill postponed.", endpointFullname)
 				return
 			}
-			proxy.ForwardRequest(endpoint, replay, resp)
+			ForwardRequest(endpoint, replay, resp)
 
 			Cursors[endpointFullname]++
 		}

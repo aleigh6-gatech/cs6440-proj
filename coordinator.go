@@ -7,9 +7,8 @@ import (
 	"io/ioutil"
 	conf "coordinator/config"
 	"gopkg.in/yaml.v2"
-	"coordinator/proxy"
 	"coordinator/web"
-	"coordinator/data_sync"
+	"coordinator/sync_proxy"
 )
 
 var config *conf.Config = &conf.Config{}
@@ -41,14 +40,11 @@ func main() {
 
 	// start proxy
 	wg.Add(1)
-	go proxy.StartProxy(config)
+	go syncProxy.StartProxy(config)
 
 	// start coordinator web server
 	wg.Add(1)
 	go web.StartWeb(config)
-
-	wg.Add(1)
-	go dataSync.StartDataSync(config)
 
 	fmt.Printf("Finished\n")
 	wg.Wait()
