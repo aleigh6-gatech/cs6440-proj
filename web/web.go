@@ -1,6 +1,8 @@
 package web
 
 import (
+	"net/url"
+	"fmt"
 	"net/http"
 	"strings"
 	"github.com/martini-contrib/render"
@@ -27,15 +29,31 @@ type dataSyncRow struct {
 	NumTxs int `json:"num_txs"`
 }
 
+type endpointRow struct {
+	Endpoint string `json:"endpoint"`
+	Enabled bool `json:"enabled"`
+	EnableURL string `json:"enable_url"`
+	DisableURL string `json:"disable_url"`
+}
+
 // StatusResponse endpoint status object
 type StatusResponse struct {
 	Healths []healthRow `json:"healths"`
 	DataSyncs []dataSyncRow `json:"data_syncs"`
+	EndpointEnabled []endpointRow `json:"endpoint_enabled"`
 }
 
 func splitEndpointFullname(fullname string) (string, string) {
 	tokens := strings.Split(fullname, "#")
 	return tokens[0], tokens[1]
+}
+
+func enableURL(endpoint string) string {
+	return fmt.Sprintf("http://127.0.0.1:%v/enable?endpoint=%v", config.ProxyControlPort, url.PathEscape(endpoint))
+}
+
+func disableURL(endpoint string) string {
+	return fmt.Sprintf("http://127.0.0.1:%v/disable?endpoint=%v", config.ProxyControlPort, url.PathEscape(endpoint))
 }
 
 func getStatusResponse() StatusResponse {
@@ -65,9 +83,21 @@ func getStatusResponse() StatusResponse {
 		dataSyncRows = append(dataSyncRows, row)
 	}
 
+	endpointRows := []endpointRow{}
+	for endpoint, enabled := range syncProxy.Enabled {
+		row := endpointRow {
+			Endpoint: endpoint,
+			Enabled: enabled,
+			EnableURL: enableURL(endpoint),
+			DisableURL: disableURL(endpoint),
+		}
+		endpointRows = append(endpointRows, row)
+	}
+
 	resp := StatusResponse {
 		Healths: healthRows,
 		DataSyncs: dataSyncRows,
+		EndpointEnabled: endpointRows,
 	}
 
 	return resp
@@ -90,11 +120,13 @@ func StartWeb(_config *conf.Config) {
 			HealthcheckInterval int
 			ServersHealth []healthRow
 			DataSync []dataSyncRow
+			EndpointEnabled []endpointRow
 			NumTxs int
 		}{
 			HealthcheckInterval: config.HealthCheckInterval,
 			ServersHealth: statusResp.Healths,
 			DataSync: statusResp.DataSyncs,
+			EndpointEnabled: statusResp.EndpointEnabled,
 			NumTxs: syncProxy.NumTxs,
 		}
 

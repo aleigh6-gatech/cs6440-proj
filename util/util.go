@@ -13,7 +13,12 @@ func EndpointFullname(clusterName string, endpoint string) string {
 
 
 // CheckEndpoint checks the helathiness of endpoint
-func CheckEndpoint(address string, path string) bool {
+func CheckEndpoint(enabled bool, address string, path string) bool {
+	// Do not check if it is not enabled
+	if !enabled {
+		return false
+	}
+
 	fullURL := fmt.Sprintf("%v/%v", address, path)
 	resp, err := http.Get(fullURL)
 	log.Printf("check endpoint: %v, %v\n", fullURL, err)

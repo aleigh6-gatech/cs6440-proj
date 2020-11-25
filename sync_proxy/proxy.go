@@ -1,6 +1,7 @@
 package syncProxy
 
 import (
+	"github.com/rs/cors"
 	"sync"
 	"net/http/httptest"
 	conf "coordinator/config"
@@ -17,6 +18,8 @@ import (
 // HealthStatus is from full endpoint name to boolean
 var HealthStatus = make(map[string]bool)
 
+var Enabled = make(map[string]bool)
+
 var httpClient = http.Client{
 	Timeout: 5 * time.Second,
 }
@@ -30,7 +33,7 @@ func startHealthCheck() {
 			case <- ticker.C:
 				for _, cluster := range config.Clusters {
 					for _, endpoint := range cluster.Endpoints {
-						if util.CheckEndpoint(endpoint, "") {
+						if util.CheckEndpoint(Enabled[endpoint], endpoint, "") {
 							HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = true
 						} else {
 							HealthStatus[util.EndpointFullname(cluster.Name, endpoint)] = false
@@ -94,7 +97,7 @@ func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 
 	// health check before sending
-	if !util.CheckEndpoint(endpoint, "") {
+	if !util.CheckEndpoint(Enabled[endpoint], endpoint, "") {
 		log.Printf("forwarding request failed. Health check failed for %s\n", endpointURL)
 		return false
 	} else {
@@ -138,7 +141,7 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 						continue
 					}
 
-					if !util.CheckEndpoint(endpoint, "") {
+					if !util.CheckEndpoint(Enabled[endpoint], endpoint, "") {
 						HealthStatus[endpointFullname] = false
 						continue
 					}
@@ -162,8 +165,15 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 	}
 }
 
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+}
+
 func startListening() {
-	http.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
 		requestSeq := -1
 
 		if req.Method == "POST" {
@@ -173,8 +183,64 @@ func startListening() {
 		routeRequest(req, resp, requestSeq)
 	})
 
+	handler := cors.Default().Handler(mux)
 	fmt.Printf("Starting server at port %v\n", config.Port)
-	if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", config.Port), nil); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", config.Port), handler); err != nil {
+		log.Fatal(err)
+	}
+}
+
+
+func startProxyControl() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/enable", func(resp http.ResponseWriter, req *http.Request) {
+		enableCors(&resp)
+		keys, ok := req.URL.Query()["endpoint"]
+
+		if !ok || len(keys[0]) < 1 {
+			log.Println("Url Param 'key' is missing")
+			resp.WriteHeader(404)
+			return
+		}
+
+		endpoint := keys[0]
+		log.Printf("Enabling endpoint %v\n", endpoint)
+
+		if _, ok := Enabled[endpoint]; !ok {
+			resp.WriteHeader(400)
+			return
+		}
+
+		Enabled[endpoint] = true
+		resp.WriteHeader(200)
+	})
+
+	mux.HandleFunc("/disable", func(resp http.ResponseWriter, req *http.Request) {
+		enableCors(&resp)
+
+		keys, ok := req.URL.Query()["endpoint"]
+
+		if !ok || len(keys[0]) < 1 {
+			log.Println("Url Param 'key' is missing")
+			resp.WriteHeader(404)
+			return
+		}
+
+		endpoint := keys[0]
+		log.Printf("Disabling endpoint %v\n", endpoint)
+
+		if _, ok := Enabled[endpoint]; !ok {
+			resp.WriteHeader(400)
+			return
+		}
+
+		Enabled[endpoint] = false
+		resp.WriteHeader(200)
+	})
+
+	handler := cors.Default().Handler(mux)
+	fmt.Printf("Starting proxy control server at port %v\n", config.ProxyControlPort)
+	if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", config.ProxyControlPort), handler); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -183,6 +249,13 @@ func startListening() {
 func StartProxy(newConfig *conf.Config) {
 	config = newConfig
 
+	// init Enabled
+	for _, cluster := range config.Clusters {
+		for _, endpoint := range cluster.Endpoints {
+			Enabled[endpoint] = true
+		}
+	}
+
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -190,6 +263,9 @@ func StartProxy(newConfig *conf.Config) {
 
 	wg.Add(1)
 	go startListening()
+
+	wg.Add(1)
+	go startProxyControl()
 
 	wg.Add(1)
 	go startDataSync()

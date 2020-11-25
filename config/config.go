@@ -9,6 +9,7 @@ type Config struct {
 	HealthCheckInterval int `yaml:"health_check_interval" default:"3"`
 	DataSyncInterval int `yaml:"data_sync_interval" default:"1"`
 	Port int
+	ProxyControlPort int `yaml:"proxy_control_port"`
 }
 
 type Cluster struct {

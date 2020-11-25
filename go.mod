@@ -16,5 +16,6 @@ require (
 	github.com/martini-contrib/render v0.0.0-20150707142108-ec18f8345a11
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
+	github.com/rs/cors v1.7.0
 	gopkg.in/yaml.v2 v2.3.0
 )

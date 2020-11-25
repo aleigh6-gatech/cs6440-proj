@@ -31,3 +31,4 @@ routes:
 health_check_interval: 3
 data_sync_interval: 3
 port: 7000
+proxy_control_port: 6999

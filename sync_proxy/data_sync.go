@@ -56,7 +56,7 @@ func backfillDataFor(clusterName string, endpoint string) {
 
 	if startIdx != -1 && startIdx < len(Transactions) { // needs backfill
 		// check connection
-		if !util.CheckEndpoint(endpoint, "") {
+		if !util.CheckEndpoint(Enabled[endpoint], endpoint, "") {
 			log.Printf("Endpoint %v check failed during backfill. Postponed\n", endpoint)
 			return
 		}
