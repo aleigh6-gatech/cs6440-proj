@@ -1,0 +1,23 @@
+version: "3"
+services:
+  hapi-fhir-jpaserver-start-2:
+    build: .
+    container_name: hapi-fhir-jpaserver-start-2
+    restart: on-failure
+    ports:
+      - "8081:8080"
+  hapi-fhir-mysql-2:
+    image: mysql:latest
+    container_name: hapi-fhir-mysql-2
+    restart: always
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_DATABASE: 'hapi'
+      MYSQL_USER: 'admin'
+      MYSQL_PASSWORD: 'admin'
+      MYSQL_ROOT_PASSWORD: 'admin'
+    volumes:
+      - hapi-fhir-mysql-2:/var/lib/mysql/
+volumes:
+  hapi-fhir-mysql-2:
