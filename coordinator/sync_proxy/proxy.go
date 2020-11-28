@@ -107,6 +107,13 @@ func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 	}
 }
 
+func RedirectRequest(endpoint string, req *http.Request, resp http.ResponseWriter) {
+	sitePath := getSitePath(req.RequestURI)
+	newURL := fmt.Sprintf("%s%s", endpoint, sitePath)
+
+	http.Redirect(resp, req, newURL, 301)
+}
+
 func urlMatch(pattern string, url string) bool {
 	requestPath := getSitePath(url)
 	log.Printf("path: %v, pattern %v, matches %v\n", url, pattern, strings.HasPrefix(requestPath, pattern))
@@ -150,9 +157,15 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 					if endpoint != bestEndpoint {
 						log.Printf("%v is not the best endpoint. Request will be forwarded. Skip writing the response from it", endpoint)
 
-						ForwardRequest(bestEndpoint, req, httptest.NewRecorder())
+						go func() {
+							RedirectRequest(endpoint, req, httptest.NewRecorder())
+							// ForwardRequest(endpoint, req, httptest.NewRecorder())
+						}()
 					} else {
-						ForwardRequest(bestEndpoint, req, resp)
+						go func() {
+							RedirectRequest(endpoint, req, resp)
+						}()
+						// ForwardRequest(bestEndpoint, req, resp)
 					}
 
 					if requestSeq != -1 { // POST request
@@ -184,7 +197,7 @@ func startListening() {
 	})
 
 	handler := cors.Default().Handler(mux)
-	fmt.Printf("Starting server at port %v\n", config.Port)
+	fmt.Printf("Starting server at http://localhost:%v\n", config.Port)
 	if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", config.Port), handler); err != nil {
 		log.Fatal(err)
 	}
