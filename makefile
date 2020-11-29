@@ -18,11 +18,11 @@ setup:
 	cd sample-ehr && docker-compose -f docker-compose2.yml up -d
 	echo "========= App2 started"
 
-	echo "========= Waiting for app1 to start, please wait patiently"
+	echo "========= Waiting for app1 to be live, please wait patiently"
 	sleep 5
 	curl -f -m 10 --retry 30 --retry-delay 5 -S -I --retry-connrefused 127.0.0.1:8080
 
-	echo "========= Waiting for app2 to start"
+	echo "========= Waiting for app2 to be live"
 	curl -f -m 10 --retry 30 --retry-delay 5 -S -I --retry-connrefused 127.0.0.1:8081
 
 	echo "========= Setting up initial data"

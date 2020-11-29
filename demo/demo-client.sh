@@ -1,0 +1,3 @@
+curl --request POST --location "http://localhost:7000/fhir" --header "Content-Type:application/json" -d "@coordinator/client/extra-data/fhir/Abel832_Schaefer657_f44998a4-d45a-1bcc-7981-ff8679b4e4fc.json"
+curl --request POST --location "http://localhost:7000/fhir" --header "Content-Type:application/json" -d "@coordinator/client/extra-data/fhir/Adria871_D'Amore443_f7cbb840-5567-9e34-8d35-65164c755a0e.json"
+curl --request POST --location "http://localhost:7000/fhir" --header "Content-Type:application/json" -d "@coordinator/client/extra-data/fhir/Wanita14_Cremin516_04b2a610-6df1-18fc-ea3a-07bcff819dd5.json"

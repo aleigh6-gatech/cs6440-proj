@@ -30,7 +30,7 @@ func generateDiagramB64() string {
 	userNode.SetLabel("User")
 
 	coordinatorNode, _ := graph.CreateNode("Coordinator")
-	coordinatorNode.SetLabel("Coordinator")
+	coordinatorNode.SetLabel(fmt.Sprintf("Coordinator@%v", config.Port))
 	coordinatorNode.SetShape("box")
 
 	edge, _ := graph.CreateEdge("", userNode, coordinatorNode)
