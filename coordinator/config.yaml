@@ -16,5 +16,6 @@ routes:
       - control # control has data_sync, which will cache POST request
 health_check_interval: 3
 data_sync_interval: 3
+host_ip: 127.0.0.1
 port: 7000
 proxy_control_port: 6999

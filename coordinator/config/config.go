@@ -8,6 +8,7 @@ type Config struct {
 
 	HealthCheckInterval int `yaml:"health_check_interval" default:"3"`
 	DataSyncInterval int `yaml:"data_sync_interval" default:"1"`
+	HostIP string `yaml:"host_ip" default:"127.0.0.1"`
 	Port int
 	ProxyControlPort int `yaml:"proxy_control_port"`
 }

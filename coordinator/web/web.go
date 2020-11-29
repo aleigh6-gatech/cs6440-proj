@@ -50,11 +50,11 @@ func splitEndpointFullname(fullname string) (string, string) {
 }
 
 func enableURL(endpoint string) string {
-	return fmt.Sprintf("http://127.0.0.1:%v/enable?endpoint=%v", config.ProxyControlPort, url.PathEscape(endpoint))
+	return fmt.Sprintf("http://%v:%v/enable?endpoint=%v", config.HostIP, config.ProxyControlPort, url.PathEscape(endpoint))
 }
 
 func disableURL(endpoint string) string {
-	return fmt.Sprintf("http://127.0.0.1:%v/disable?endpoint=%v", config.ProxyControlPort, url.PathEscape(endpoint))
+	return fmt.Sprintf("http://%v:%v/disable?endpoint=%v", config.HostIP, config.ProxyControlPort, url.PathEscape(endpoint))
 }
 
 func getStatusResponse() StatusResponse {
