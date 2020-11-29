@@ -253,7 +253,7 @@ func startProxyControl() {
 
 	handler := cors.Default().Handler(mux)
 	fmt.Printf("Starting proxy control server at port %v\n", config.ProxyControlPort)
-	if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", config.ProxyControlPort), handler); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%v", config.ProxyControlPort), handler); err != nil {
 		log.Fatal(err)
 	}
 }
