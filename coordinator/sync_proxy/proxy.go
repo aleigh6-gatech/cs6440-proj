@@ -107,12 +107,12 @@ func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 	}
 }
 
-func RedirectRequest(endpoint string, req *http.Request, resp http.ResponseWriter) {
-	sitePath := getSitePath(req.RequestURI)
-	newURL := fmt.Sprintf("%s%s", endpoint, sitePath)
+// func RedirectRequest(endpoint string, req *http.Request, resp http.ResponseWriter) {
+// 	sitePath := getSitePath(req.RequestURI)
+// 	newURL := fmt.Sprintf("%s%s", endpoint, sitePath)
 
-	http.Redirect(resp, req, newURL, 301)
-}
+// 	http.Redirect(resp, req, newURL, 301)
+// }
 
 func urlMatch(pattern string, url string) bool {
 	requestPath := getSitePath(url)
@@ -131,10 +131,12 @@ func getClusterFromConfig(clusterName string) conf.Cluster {
 }
 
 func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
+	requestCopy := util.CloneRequest(req) // *req.Clone(context.TODO())
+
 	for _, route := range config.Routes {
 		if urlMatch(route.Path, req.RequestURI) {
 			// forward request to all the listed clusters
-			for _, clusterName := range route.Clusters {
+			for clusterIndex, clusterName := range route.Clusters {
 				bestEndpoint := BestEndpointInCluster(clusterName)
 
 				// forward request to each endpoint in the cluster
@@ -154,18 +156,18 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 					}
 
 					// check best endpoint to determine which response to return to the user
-					if endpoint != bestEndpoint {
+					if endpoint == bestEndpoint && clusterIndex == 0 {
+						cntEndpoint := endpoint
+						log.Printf("Best endpoint %v: compare %v %v %v", bestEndpoint, clusterName, cntEndpoint, req)
+						ForwardRequest(cntEndpoint, req, resp)
+					} else {
 						log.Printf("%v is not the best endpoint. Request will be forwarded. Skip writing the response from it", endpoint)
 
-						go func() {
-							RedirectRequest(endpoint, req, httptest.NewRecorder())
-							// ForwardRequest(endpoint, req, httptest.NewRecorder())
-						}()
-					} else {
-						go func() {
-							RedirectRequest(endpoint, req, resp)
-						}()
-						// ForwardRequest(bestEndpoint, req, resp)
+						cntEndpoint := endpoint
+						dup := util.CloneRequest(requestCopy)
+						log.Printf("Dup request: %v, original request: %v\n", dup, *req)
+
+						ForwardRequest(cntEndpoint, dup, httptest.NewRecorder())
 					}
 
 					if requestSeq != -1 { // POST request
@@ -198,7 +200,7 @@ func startListening() {
 
 	handler := cors.Default().Handler(mux)
 	fmt.Printf("Starting server at http://localhost:%v\n", config.Port)
-	if err := http.ListenAndServe(fmt.Sprintf("localhost:%v", config.Port), handler); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%v", config.Port), handler); err != nil {
 		log.Fatal(err)
 	}
 }

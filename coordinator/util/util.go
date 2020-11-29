@@ -1,6 +1,8 @@
 package util
 
 import (
+	"io/ioutil"
+	"bytes"
 	"fmt"
 	"net/http"
 	"log"
@@ -27,4 +29,24 @@ func CheckEndpoint(enabled bool, address string, path string) bool {
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode < 400
+}
+
+
+// CloneRequest clones HTTP request
+func CloneRequest(req *http.Request) *http.Request {
+	// br, _ := req.GetBody()
+	body, _ := ioutil.ReadAll(req.Body)
+
+    // you can reassign the body if you need to parse it as multipart
+	req.Body = ioutil.NopCloser(bytes.NewReader(body))
+
+	newReq, _ := http.NewRequest(req.Method, req.RequestURI, bytes.NewReader(body))
+
+	for k, vv := range req.Header {
+		for _, v := range vv {
+			newReq.Header.Add(k, v)
+		}
+	}
+
+	return newReq
 }
