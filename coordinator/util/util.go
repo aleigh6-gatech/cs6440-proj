@@ -1,6 +1,7 @@
-package util
+ package util
 
 import (
+	"context"
 	"io/ioutil"
 	"bytes"
 	"fmt"
@@ -34,19 +35,25 @@ func CheckEndpoint(enabled bool, address string, path string) bool {
 
 // CloneRequest clones HTTP request
 func CloneRequest(req *http.Request) *http.Request {
-	// br, _ := req.GetBody()
-	body, _ := ioutil.ReadAll(req.Body)
+	// clone body
+	newReq := req.Clone(context.TODO())
+	*newReq = *req
 
-    // you can reassign the body if you need to parse it as multipart
-	req.Body = ioutil.NopCloser(bytes.NewReader(body))
+	var b bytes.Buffer
+	b.ReadFrom(req.Body)
+	req.Body = ioutil.NopCloser(&b)
+	newReq.Body = ioutil.NopCloser(bytes.NewReader(b.Bytes()))
 
-	newReq, _ := http.NewRequest(req.Method, req.RequestURI, bytes.NewReader(body))
-
+	// clone url
+	url := fmt.Sprintf("http://%v%v", req.Host, req.URL.Path)
+	log.Printf("DEBUG CloneRequest: %v, cloned URL: %v\n", req, url)
+	log.Printf("DEBUG CloneRequest what is headers %v, %v\n", req, newReq)
 	for k, vv := range req.Header {
 		for _, v := range vv {
 			newReq.Header.Add(k, v)
 		}
 	}
+	log.Printf("DEBUG CloneRequest final check %v, %v\n", req.ContentLength, newReq.ContentLength)
 
 	return newReq
 }

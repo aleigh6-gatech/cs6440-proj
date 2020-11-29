@@ -131,7 +131,7 @@ func getClusterFromConfig(clusterName string) conf.Cluster {
 }
 
 func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
-	requestCopy := util.CloneRequest(req) // *req.Clone(context.TODO())
+	requestCopy := util.CloneRequest(req) // req.Clone(context.WithValue()) /
 
 	for _, route := range config.Routes {
 		if urlMatch(route.Path, req.RequestURI) {
@@ -144,6 +144,7 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 
 				for _, endpoint := range cluster.Endpoints {
 					endpointFullname := util.EndpointFullname(clusterName, endpoint)
+					log.Printf("full endpoint name %v, health %v\n", endpointFullname, HealthStatus[endpointFullname])
 
 					// check endpoint health first
 					if !HealthStatus[endpointFullname] {
@@ -154,6 +155,7 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 						HealthStatus[endpointFullname] = false
 						continue
 					}
+					log.Printf("Pass healthcheck %v, health %v\n", endpointFullname, HealthStatus[endpointFullname])
 
 					// check best endpoint to determine which response to return to the user
 					if endpoint == bestEndpoint && clusterIndex == 0 {
@@ -164,7 +166,8 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 						log.Printf("%v is not the best endpoint. Request will be forwarded. Skip writing the response from it", endpoint)
 
 						cntEndpoint := endpoint
-						dup := util.CloneRequest(requestCopy)
+						var dup *http.Request
+						dup = util.CloneRequest(requestCopy) // requestCopy.Clone(context.WithValue())
 						log.Printf("Dup request: %v, original request: %v\n", dup, *req)
 
 						ForwardRequest(cntEndpoint, dup, httptest.NewRecorder())
