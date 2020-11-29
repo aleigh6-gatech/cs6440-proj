@@ -10,6 +10,7 @@ require (
 	github.com/go-martini/martini v0.0.0-20170121215854-22fa46961aab
 	github.com/go-ping/ping v0.0.0-20201022122018-3977ed72668a
 	github.com/go-sql-driver/mysql v1.5.0
+	github.com/goccy/go-graphviz v0.0.9
 	github.com/google/uuid v1.1.2 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect

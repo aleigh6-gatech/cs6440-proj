@@ -41,6 +41,7 @@ type StatusResponse struct {
 	Healths []healthRow `json:"healths"`
 	DataSyncs []dataSyncRow `json:"data_syncs"`
 	EndpointEnabled []endpointRow `json:"endpoint_enabled"`
+	DiagramB64 string `json"diagram_b64`
 }
 
 func splitEndpointFullname(fullname string) (string, string) {
@@ -94,10 +95,13 @@ func getStatusResponse() StatusResponse {
 		endpointRows = append(endpointRows, row)
 	}
 
+	diagramB64 := generateDiagramB64()
+
 	resp := StatusResponse {
 		Healths: healthRows,
 		DataSyncs: dataSyncRows,
 		EndpointEnabled: endpointRows,
+		DiagramB64: diagramB64,
 	}
 
 	return resp
@@ -122,12 +126,14 @@ func StartWeb(_config *conf.Config) {
 			DataSync []dataSyncRow
 			EndpointEnabled []endpointRow
 			NumTxs int
+			DiagramB64 string
 		}{
 			HealthcheckInterval: config.HealthCheckInterval,
 			ServersHealth: statusResp.Healths,
 			DataSync: statusResp.DataSyncs,
 			EndpointEnabled: statusResp.EndpointEnabled,
 			NumTxs: syncProxy.NumTxs,
+			DiagramB64: statusResp.DiagramB64,
 		}
 
 		r.HTML(200, "index", inst)

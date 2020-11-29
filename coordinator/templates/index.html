@@ -13,9 +13,15 @@
     </div>
 
     <div class="container mt-5">
+        <h3>Architecture diagram</h3>
+        <p>
+            <img src="data:image/png;base64,{{ .DiagramB64 }}" alt="Architecture diagram" />
+        </p>
+    </div>
+
+    <div class="container mt-5">
         <h3>Coordinator configurations</h3>
         <p>Healthcheck interval: {{ .HealthcheckInterval }}s </p>
-
     </div>
 
     <div class="container mt-5">
@@ -80,8 +86,8 @@
             <tr>
                 <td>{{ .Endpoint }}</td>
                 <td>{{ if .Enabled }}Enabled{{ else }}Disabled{{ end }}</td>
-                <td><a href="{{ .EnableURL }}" class="ajax-link">Enable</a></td>
-                <td><a href="{{ .DisableURL }}" class="ajax-link">Disable</a></td>
+                <td><a href="{{ .EnableURL }}" class="ajax-link btn btn-sm btn-outline-success">Enable</a></td>
+                <td><a href="{{ .DisableURL }}" class="ajax-link btn btn-sm btn-outline-danger">Disable</a></td>
             </tr>
 
             {{ end }}
