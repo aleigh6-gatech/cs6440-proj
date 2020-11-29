@@ -1,7 +1,6 @@
 package syncProxy
 
 import (
-	"context"
 	"net/http/httptest"
 	"log"
 	"time"
@@ -28,7 +27,7 @@ var NumTxs = 0
 // AddTransaction adds transaction into the transactions cache
 func AddTransaction(req *http.Request) int {
 	// save a copy of the request to transacitons
-	newTransaction := WrapRequest{ Seq: NumTxs, request: *req.Clone(context.TODO()) }
+	newTransaction := WrapRequest{ Seq: NumTxs, request: *util.CloneRequest(req) }
 	Transactions = append(Transactions, newTransaction)
 	NumTxs ++
 
@@ -42,8 +41,6 @@ func backfillDataFor(clusterName string, endpoint string) {
 	cursor := Cursors[endpointFullname]
 	startIdx := -1
 
-	log.Printf("DEBUG cursor %v for %v\n", cursor, endpoint)
-
 	// find the starting point for the endpoint to backfill
 	for i, tx := range(Transactions) {
 		if tx.Seq > cursor {
@@ -51,8 +48,6 @@ func backfillDataFor(clusterName string, endpoint string) {
 			break
 		}
 	}
-
-	log.Printf("DEBUG: startIndex %v, transactionns length %v\n", startIdx, len(Transactions))
 
 	if startIdx != -1 && startIdx < len(Transactions) { // needs backfill
 		// check connection
@@ -80,11 +75,9 @@ func backfillDataFor(clusterName string, endpoint string) {
 					replay.Header.Add(header, value)
 				}
 			}
-			log.Printf("DEBUG Request duplication, %v\nDup: %v\n", req, replay)
 			resp := httptest.NewRecorder()
 
 			// check endpoint health
-			log.Printf("DEBUG health status %v\n", HealthStatus)
 			if !HealthStatus[endpointFullname] {
 				log.Printf("Endpoint %v not healthy. Backfill postponed.", endpointFullname)
 				return
@@ -100,21 +93,16 @@ func backfillDataFor(clusterName string, endpoint string) {
 func swipeTxs() {
 	log.Println("swiping txs")
 
-	log.Printf("DEBUG len %v\n %v %v\n",  len(Transactions), Transactions, Cursors)
-
 	if len(Cursors) == 0 {
 		return
 	}
 
 	minCursor := -1
 	for _, cursor := range(Cursors) {
-		log.Printf("cursor value: %v\n", cursor)
 		if cursor < minCursor {
 			minCursor = cursor
 		}
 	}
-
-	log.Printf("DEBUG min cursor %v\n", minCursor)
 
 	swipeCount := 0
 	for (len(Transactions) > 0) {

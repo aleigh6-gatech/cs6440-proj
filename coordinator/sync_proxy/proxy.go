@@ -92,7 +92,6 @@ func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 	req.URL.Scheme = endpointURL.Scheme
 	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 	req.Host = endpointURL.Host
-	log.Printf("updated req %v\n", req)
 
 	// Note that ServeHttp is non blocking and uses a go routine under the hood
 
@@ -116,7 +115,6 @@ func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 
 func urlMatch(pattern string, url string) bool {
 	requestPath := getSitePath(url)
-	log.Printf("path: %v, pattern %v, matches %v\n", url, pattern, strings.HasPrefix(requestPath, pattern))
 
 	return strings.HasPrefix(requestPath, pattern)
 }
@@ -144,7 +142,6 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 
 				for _, endpoint := range cluster.Endpoints {
 					endpointFullname := util.EndpointFullname(clusterName, endpoint)
-					log.Printf("full endpoint name %v, health %v\n", endpointFullname, HealthStatus[endpointFullname])
 
 					// check endpoint health first
 					if !HealthStatus[endpointFullname] {
@@ -155,12 +152,11 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 						HealthStatus[endpointFullname] = false
 						continue
 					}
-					log.Printf("Pass healthcheck %v, health %v\n", endpointFullname, HealthStatus[endpointFullname])
 
 					// check best endpoint to determine which response to return to the user
 					if endpoint == bestEndpoint && clusterIndex == 0 {
 						cntEndpoint := endpoint
-						log.Printf("Best endpoint %v: compare %v %v %v", bestEndpoint, clusterName, cntEndpoint, req)
+						log.Printf("Best endpoint %v matched %v %v %v", bestEndpoint, clusterName, cntEndpoint, req)
 						ForwardRequest(cntEndpoint, req, resp)
 					} else {
 						log.Printf("%v is not the best endpoint. Request will be forwarded. Skip writing the response from it", endpoint)
@@ -168,7 +164,6 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 						cntEndpoint := endpoint
 						var dup *http.Request
 						dup = util.CloneRequest(requestCopy) // requestCopy.Clone(context.WithValue())
-						log.Printf("Dup request: %v, original request: %v\n", dup, *req)
 
 						ForwardRequest(cntEndpoint, dup, httptest.NewRecorder())
 					}

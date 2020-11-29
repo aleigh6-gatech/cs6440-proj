@@ -73,7 +73,6 @@ func getStatusResponse() StatusResponse {
 
 	// prepare sync data
 	dataSyncRows := []dataSyncRow{}
-	log.Printf("cursors %v\n", syncProxy.Cursors)
 	for endpointFullname, seq := range syncProxy.Cursors {
 		cluster, endpoint := splitEndpointFullname(endpointFullname)
 		row := dataSyncRow{

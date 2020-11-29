@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"log"
 )
 
 // EndpointFullname returns the key value for check endpoint health status.
@@ -24,7 +23,6 @@ func CheckEndpoint(enabled bool, address string, path string) bool {
 
 	fullURL := fmt.Sprintf("%v/%v", address, path)
 	resp, err := http.Get(fullURL)
-	log.Printf("check endpoint: %v, %v\n", fullURL, err)
 	if err != nil {
 		return false
 	}
@@ -45,15 +43,15 @@ func CloneRequest(req *http.Request) *http.Request {
 	newReq.Body = ioutil.NopCloser(bytes.NewReader(b.Bytes()))
 
 	// clone url
-	url := fmt.Sprintf("http://%v%v", req.Host, req.URL.Path)
-	log.Printf("DEBUG CloneRequest: %v, cloned URL: %v\n", req, url)
-	log.Printf("DEBUG CloneRequest what is headers %v, %v\n", req, newReq)
+	// url := fmt.Sprintf("http://%v%v", req.Host, req.URL.Path)
+
+	// clone headers
+
 	for k, vv := range req.Header {
 		for _, v := range vv {
 			newReq.Header.Add(k, v)
 		}
 	}
-	log.Printf("DEBUG CloneRequest final check %v, %v\n", req.ContentLength, newReq.ContentLength)
 
 	return newReq
 }
