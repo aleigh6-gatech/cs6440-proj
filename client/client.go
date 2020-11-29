@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sync"
 	"os"
 	"net/http"
 	"gopkg.in/yaml.v2"
@@ -106,14 +107,14 @@ func main() {
 	// prepare
 	var err error
 
-	done := make(chan bool)
-
 	updateConfig("./config.yaml")
 	extraDataFilepaths, err =  ioutil.ReadDir(config.ExtraDataDir)
 
 	if err != nil {
 		log.Printf("Failed to load extra data for writing\n")
 	}
+
+	var wg sync.WaitGroup
 
 	// send request according to config
 	go func() {
@@ -145,6 +146,7 @@ func main() {
 			time.Sleep( time.Duration(interval*1000) * time.Millisecond )
 		}
 	}()
+	wg.Add(1)
 
 	// read config
 	go func() {
@@ -153,7 +155,7 @@ func main() {
 			time.Sleep(time.Duration(config.UpdateConfigInterval) * time.Second)
 		}
 	}()
-
+	wg.Add(1)
 
 	go func() {
 		for {
@@ -166,7 +168,7 @@ func main() {
 			time.Sleep(time.Duration(config.RequestLogInterval) * time.Second)
 		}
 	}()
+	wg.Add(1)
 
-
-	<- done
+	wg.Wait()
 }

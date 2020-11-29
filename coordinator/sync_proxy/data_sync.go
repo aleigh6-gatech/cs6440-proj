@@ -1,7 +1,10 @@
 package syncProxy
 
 import (
-	"net/http/httptest"
+	"fmt"
+	"io/ioutil"
+	"bytes"
+	// "net/http/httptest"
 	"log"
 	"time"
 	"net/http"
@@ -12,10 +15,13 @@ import (
 type WrapRequest struct {
 	Seq int
 	request http.Request
+	Path string
+	Body []byte
+	Routed bool
 }
 
 
-var Transactions = []WrapRequest{}
+var Transactions = []*WrapRequest{}
 
 // Cursors stores the latest transaction seq number that was executed for each endpoint
 var Cursors = make(map[string]int)
@@ -24,14 +30,35 @@ var counter int
 
 var NumTxs = 0
 
+func PrintTxs() {
+	log.Printf("Print Txs\n")
+	for _, tx := range Transactions {
+		log.Printf("[%v %v len(%v) %v %p]\n", tx.Seq, tx.Path, len(tx.Body), tx.Routed, &tx)
+	}
+	log.Printf("\n")
+}
+
 // AddTransaction adds transaction into the transactions cache
-func AddTransaction(req *http.Request) int {
+func AddTransaction(req *http.Request) *WrapRequest {
 	// save a copy of the request to transacitons
-	newTransaction := WrapRequest{ Seq: NumTxs, request: *util.CloneRequest(req) }
+
+	var b bytes.Buffer
+	b.ReadFrom(req.Body)
+	req.Body = ioutil.NopCloser(&b)
+	nb := make([]byte, len(b.Bytes()))
+	copy(nb, b.Bytes())
+
+	newTransaction := &WrapRequest{
+		Seq: NumTxs,
+		request: *util.CloneRequest(req),
+		Path: req.URL.Path,
+		Body: nb,
+	}
+
 	Transactions = append(Transactions, newTransaction)
 	NumTxs ++
 
-	return NumTxs-1
+	return newTransaction
 }
 
 func backfillDataFor(clusterName string, endpoint string) {
@@ -43,7 +70,7 @@ func backfillDataFor(clusterName string, endpoint string) {
 
 	// find the starting point for the endpoint to backfill
 	for i, tx := range(Transactions) {
-		if tx.Seq > cursor {
+		if tx.Seq > cursor && tx.Routed {
 			startIdx = i
 			break
 		}
@@ -61,30 +88,20 @@ func backfillDataFor(clusterName string, endpoint string) {
 		log.Printf("Backfill for %v %v, started from %v\n", clusterName, endpoint, startIdx)
 
 		for _, tx := range(Transactions[startIdx:]) {
-			// send the request again, and update Cursors
-			req := tx.request
+			newURL := fmt.Sprintf("%v%v", endpoint, tx.Path)
+			req, err := http.NewRequest("POST", newURL, bytes.NewReader(tx.Body))
+			req.Header.Add("Content-Type", "application/json")
 
-			// duplicate request
-			replay, err := http.NewRequest(req.Method, req.RequestURI, req.Body)
-			if err != nil {
-				log.Printf("Error when creating replay request %s %s, %v\n", clusterName, endpoint, err)
+			httpClient.Timeout = time.Duration(60 * time.Second)
+			_, err = httpClient.Do(req)
+
+			if err == nil {
+				log.Printf("backfill request success: tx.seq %v\n", tx.Seq)
+				Cursors[endpointFullname] = tx.Seq
+			} else {
+				log.Printf("backfill request failed : %v\n", err)
 				break
 			}
-			for header, values := range req.Header {
-				for _, value := range values {
-					replay.Header.Add(header, value)
-				}
-			}
-			resp := httptest.NewRecorder()
-
-			// check endpoint health
-			if !HealthStatus[endpointFullname] {
-				log.Printf("Endpoint %v not healthy. Backfill postponed.", endpointFullname)
-				return
-			}
-			ForwardRequest(endpoint, replay, resp)
-
-			Cursors[endpointFullname] = tx.Seq
 		}
 	}
 }
@@ -99,7 +116,7 @@ func swipeTxs() {
 
 	minCursor := -1
 	for _, cursor := range(Cursors) {
-		if cursor < minCursor {
+		if cursor < minCursor || minCursor == -1 {
 			minCursor = cursor
 		}
 	}
@@ -107,7 +124,7 @@ func swipeTxs() {
 	swipeCount := 0
 	for (len(Transactions) > 0) {
 		tx := Transactions[0]
-		if tx.Seq < minCursor {
+		if tx.Seq <= minCursor {
 			Transactions = Transactions[1:]
 			swipeCount++
 		} else{
@@ -124,7 +141,8 @@ func backfillData() {
 			backfillDataFor(cluster.Name, endpoint)
 		}
 
-		log.Printf("After backfill\nlen txs %v\ntxs: %v\nNumTxs: %v\nCursors: %v\n", len(Transactions), Transactions, NumTxs, Cursors)
+		log.Printf("After backfill\nlen txs %v\nNumTxs: %v\nCursors: %v\n", len(Transactions), NumTxs, Cursors)
+		PrintTxs()
 	}
 }
 

@@ -1,6 +1,6 @@
 update_config_interval: 5 # seconds
 concurrency: 4 # request per second. Don't make it higher than 10
-write_ratio: 0.4 # 0 ~ 1, how much of the requests are writing new data
+write_ratio: 0.1 # 0 ~ 1, how much of the requests are writing new data
 request_log_interval: 5 # log interval in second
 api_host: http://localhost:7000
 read_path: /fhir/Patient?identifier=c62bce95-612d-5a0c-b61e-29039e8787ff

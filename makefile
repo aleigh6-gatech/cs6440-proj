@@ -54,6 +54,11 @@ stop:
 clean: stop
 	cd ./sample-ehr && docker-compose rm
 	cd ./sample-ehr && docker-compose -f docker-compose2.yml rm
+	rm coordinator/coordinator.log
 
 watch:
+	touch coordinator/coordinator.log
 	tail -f coordinator/*.log
+
+client:
+	cd client && go run client.go

@@ -81,7 +81,7 @@ func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 	// get request path
 	sitePath := getSitePath(req.RequestURI)
 
-	log.Printf("forwarding request to %s, path %s, original req %v\n", endpoint, sitePath, req)
+	log.Printf("forwarding request to %s, path %s, original req (%v, %v)\n", endpoint, sitePath, req.RequestURI, req.ContentLength)
 	endpointURL, _ := url.Parse(endpoint)
 
 	// create the reverse proxy
@@ -106,12 +106,12 @@ func ForwardRequest(endpoint string, req *http.Request, resp http.ResponseWriter
 	}
 }
 
-// func RedirectRequest(endpoint string, req *http.Request, resp http.ResponseWriter) {
-// 	sitePath := getSitePath(req.RequestURI)
-// 	newURL := fmt.Sprintf("%s%s", endpoint, sitePath)
+func RedirectRequest(endpoint string, req *http.Request, resp http.ResponseWriter) {
+	sitePath := getSitePath(req.RequestURI)
+	newURL := fmt.Sprintf("%s%s", endpoint, sitePath)
 
-// 	http.Redirect(resp, req, newURL, 301)
-// }
+	http.Redirect(resp, req, newURL, 307)
+}
 
 func urlMatch(pattern string, url string) bool {
 	requestPath := getSitePath(url)
@@ -156,7 +156,7 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 					// check best endpoint to determine which response to return to the user
 					if endpoint == bestEndpoint && clusterIndex == 0 {
 						cntEndpoint := endpoint
-						log.Printf("Best endpoint %v matched %v %v %v", bestEndpoint, clusterName, cntEndpoint, req)
+						log.Printf("Best endpoint %v matched %v %v (%v, %v)", bestEndpoint, clusterName, cntEndpoint, req.RequestURI, req.ContentLength)
 						ForwardRequest(cntEndpoint, req, resp)
 					} else {
 						log.Printf("%v is not the best endpoint. Request will be forwarded. Skip writing the response from it", endpoint)
@@ -173,7 +173,7 @@ func routeRequest(req *http.Request, resp http.ResponseWriter, requestSeq int) {
 					}
 				}
 			}
-			break
+			break // from the route matching
 		}
 	}
 }
@@ -183,17 +183,22 @@ func enableCors(w *http.ResponseWriter) {
 }
 
 func startListening() {
-
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(resp http.ResponseWriter, req *http.Request) {
-		requestSeq := -1
+		var tx *WrapRequest
 
 		if req.Method == "POST" {
-			requestSeq = AddTransaction(req)
+			tx = AddTransaction(req)
+			log.Printf("DEBUG new transaction info: [%v %p]\n", tx.Seq, tx)
+			routeRequest(req, resp, tx.Seq)
+
+			tx.Routed = true
+			log.Printf("DEBUG new transaction Finished, updating routed: [%v %p]\n", tx.Seq, tx)
+		} else {
+			routeRequest(req, resp, -1)
 		}
 
-		routeRequest(req, resp, requestSeq)
 	})
 
 	handler := cors.Default().Handler(mux)
