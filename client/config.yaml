@@ -1,8 +1,23 @@
-update_config_interval: 5 # seconds
-concurrency: 4 # request per second. Don't make it higher than 10
-write_ratio: 0.1 # 0 ~ 1, how much of the requests are writing new data
-request_log_interval: 5 # log interval in second
+# Time interval that client dynamically re-load the configuration file
+update_config_interval: 5
+
+# Number of requests per seconds. Requests are sent sequentially. Note to keep is low for demo.
+concurrency: 1
+
+# 0 ~ 1, the probability that a request is a POST request. E.g. 0.1 means 10%
+write_ratio: 0.4
+
+# Time interval that the client script updates status to log
+request_log_interval: 5
+
+# The URL of the coorinator proxy (Note it is not the url of the dashboard)
 api_host: http://localhost:7000
+
+# Read request path
 read_path: /fhir/Patient?identifier=c62bce95-612d-5a0c-b61e-29039e8787ff
+
+# Write request path
 write_path: /fhir
+
+# JSON data for write requests stored on local
 extra_data_dir: ./extra-data/fhir/

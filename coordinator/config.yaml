@@ -1,21 +1,37 @@
+# Array, contains a list of clusters
 clusters:
   - name: control
+
+    # Array, a list of HTTP addresses to indicate different endpoints (replicas)
     endpoints:
-      - http://127.0.0.1:3000
+      - http://127.0.0.1:3000 # DON'T FORGET PROTOCOL SEGMENT
   - name: app
-    endpoints: # DON'T FORGET PROTOCOL SEGMENT
+    endpoints:
       - http://127.0.0.1:8080
       - http://127.0.0.1:8081
+# Array, contains a list of routing rules. The routing rules are ordered. Coordinator will match the URL of request from top to bottom. The request will be sent to all the endpoints in all the clusters of the first matched routing rule.
 routes:
+  # path: the prefix of the url that to be matched
   - path: "/admin"
+    # a list of cluster names that request needs to be sent to
     clusters:
       - control
   - path: "/"
     clusters:
       - app
       - control # control has data_sync, which will cache POST request
+
+# The interval that coordinator checks the healthiness of endpoints, in seconds
 health_check_interval: 3
+
+# The interval that coordinator execute data backfill procedure, in seconds
 data_sync_interval: 3
+
+# The host name of host IP address
 host_ip: 127.0.0.1
+
+# The port number that proxy will be running on. Note it is different from the port number of coordinator dashboard, which runs on port 3000,
 port: 7000
+
+# The port number that proxy API runs on. Currently it is only for simulating of enabling and disabling of endpoints
 proxy_control_port: 6999
