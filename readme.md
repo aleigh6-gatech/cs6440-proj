@@ -1,6 +1,16 @@
 GaTech CS6440 individual project - High availability replication system
 ---
 
+### Introduction
+
+This project develops a proxy (called coordinator) stands in between of user clients and multiple clusters of servers. The purpose is to improve system availability, by routing request to the healthy endpoints (replicas) in the designated cluster.
+
+In the demo, we assume that each endpoint has their own data storage. The coordinator also ensure the data are synchronized among all replicas, by replaying POST request to them. In practical cases, data synchronzization can also be handled by distributed database system, rather than replaying requests.
+
+For each request, the coordinator will send back the response from a healthy endpoint that has the highest priority in the cluster.
+
+### Structure
+
 The structure of this project:
 
 ```
