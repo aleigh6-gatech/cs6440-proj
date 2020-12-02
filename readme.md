@@ -1,8 +1,11 @@
 GaTech CS6440 individual project - High availability replication system
 ---
 
-Live site demo: http://138.91.241.95:3000/admin
-
+* Live site demo: http://138.91.241.95:3000/admin
+* Sample healthcare app behind the coordinator: 
+  * http://138.91.241.95:8080
+  * http://138.91.241.95:8081
+* Entry point for GET/POST request: http://138.91.241.95:7000
 
 ### Introduction
 
