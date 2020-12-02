@@ -1,7 +1,7 @@
 GaTech CS6440 individual project - High availability replication system
 ---
 
-Live site demo: http://138.91.241.95:3000/
+Live site demo: http://138.91.241.95:3000/admin
 
 
 ### Introduction
