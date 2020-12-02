@@ -1,6 +1,9 @@
 GaTech CS6440 individual project - High availability replication system
 ---
 
+Live site demo: http://138.91.241.95:3000/
+
+
 ### Introduction
 
 This project develops a proxy (called coordinator) stands in between of user clients and multiple clusters of servers. The purpose is to improve system availability, by routing request to the healthy endpoints (replicas) in the designated cluster.
